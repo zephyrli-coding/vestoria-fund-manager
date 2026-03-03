@@ -152,6 +152,7 @@ def transfer(
 
 # Operation history endpoints
 
+@router.get("/{investor_id}/operations", response_model=ResponseModel[OperationListResponse])
 @router.get("/operations", response_model=ResponseModel[OperationListResponse])
 def get_operations(
     fund_id: int,
@@ -177,7 +178,6 @@ def get_operations(
     return ResponseModel(data=result)
 
 
-@router.get("/{investor_id}/operations", response_model=ResponseModel[OperationListResponse])
 def get_investor_operations(
     fund_id: int,
     investor_id: int,
