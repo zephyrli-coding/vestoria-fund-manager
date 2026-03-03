@@ -96,9 +96,10 @@ class InvestorService:
         new_share = round(investor.share + share, 6)
         self.investor_repo.update_share(investor, new_share)
 
-        # Update fund total share
+        # Update fund total share and balance
         new_fund_total_share = round(fund.total_share + share, 6)
-        self.fund_repo.update(fund, total_share=new_fund_total_share)
+        new_fund_balance = round(new_fund_total_share * nav, 6)
+        self.fund_repo.update(fund, total_share=new_fund_total_share, balance=new_fund_balance)
 
         # Update investor balance
         investor.balance = round(new_share * nav, 6)
@@ -117,7 +118,7 @@ class InvestorService:
             total_share_before=fund.total_share,
             total_share_after=new_fund_total_share,
             balance_before=fund.balance,
-            balance_after=fund.balance
+            balance_after=new_fund_balance
         )
 
         return {
@@ -170,9 +171,10 @@ class InvestorService:
         new_investor_share = round(investor.share - redeem_share, 6)
         self.investor_repo.update_share(investor, new_investor_share)
 
-        # Update fund total share
+        # Update fund total share and balance
         new_fund_total_share = round(fund.total_share - redeem_share, 6)
-        self.fund_repo.update(fund, total_share=new_fund_total_share)
+        new_fund_balance = round(new_fund_total_share * nav, 6)
+        self.fund_repo.update(fund, total_share=new_fund_total_share, balance=new_fund_balance)
 
         # Update investor balance
         investor.balance = round(new_investor_share * nav, 6)
@@ -192,7 +194,7 @@ class InvestorService:
             total_share_before=fund.total_share,
             total_share_after=new_fund_total_share,
             balance_before=fund.balance,
-            balance_after=fund.balance
+            balance_after=new_fund_balance
         )
 
         return {
@@ -252,12 +254,12 @@ class InvestorService:
         self.investor_repo.update_share(from_investor, from_new_share)
         self.investor_repo.update_share(to_investor, to_new_share)
 
-        # Update balances
+        # Update investor balances
         from_investor.balance = round(from_new_share * nav, 6)
         to_investor.balance = round(to_new_share * nav, 6)
         self.db.commit()
 
-        # Record operation
+        # Record operation (fund balance doesn't change in transfer)
         self.operation_repo.create(
             fund_id=fund_id,
             investor_id=from_investor_id,
