@@ -235,7 +235,12 @@ class InvestorService:
         nav = fund.net_asset_value
         from_balance = from_investor.share * nav
 
+
         # Calculate transfer
+        # Validate amount
+        if amount <= 0:
+            raise ValueError("Transfer amount must be greater than 0")
+
         if amount_type == "share":
             if from_investor.share < amount:
                 raise ValueError("Insufficient shares to transfer")
