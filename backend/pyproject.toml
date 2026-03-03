@@ -2,6 +2,17 @@
 name = "fund-manager-backend"
 version = "1.0.0"
 description = "Fund management system backend"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy>=2.0.23",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-jose[cryptography]>=3.3.0",
+    "python-multipart>=0.0.6",
+    "alembic>=1.13.0",
+    "bcrypt>=5.0.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -9,17 +20,3 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
-
-[tool.uv]
-dev-dependencies = []
-
-[project.dependencies]
-fastapi = ">=0.104.1"
-uvicorn = {version = ">=0.24.0", extras = ["standard"]}
-sqlalchemy = ">=2.0.23"
-pydantic = ">=2.5.0"
-pydantic-settings = ">=2.1.0"
-python-jose = {version = ">=3.3.0", extras = ["cryptography"]}
-python-multipart = ">=0.0.6"
-alembic = ">=1.13.0"
-bcrypt = ">=5.0.0"
