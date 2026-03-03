@@ -1,25 +1,22 @@
-# 服务器环境配置和启动指南
+# 基金管理系统 - 服务器环境配置
 
-## 🚀 在服务器上启动前端开发
+## 🚀 在服务器上启动前端
 
 ### 前提条件
-
-✅ 服务器已安装：Node.js 22.22.0, npm 10.9.4
-✅ 后端服务运行：uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-✅ 前端代码已推送：GitHub frontend 分支
+- ✅ 后端服务运行（http://localhost:8000）
+- ✅ 前端代码已拉取（GitHub frontend 分支）
+- ✅ Vite 已全局安装（最新版）
 
 ---
 
-## 📋 步骤 1：进入前端目录
+## 📋 启动步骤
 
+### 1. 进入前端目录
 ```bash
 cd projects/fund-manager/frontend
 ```
 
----
-
-## 📋 步骤 2：安装依赖
-
+### 2. 清理并安装依赖
 ```bash
 # 清理旧依赖
 rm -rf node_modules package-lock.json
@@ -28,46 +25,59 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
-**预计时间**：2-5 分钟（取决于网络速度）
+**预计时间**：3-5 分钟
 
----
-
-## 📋 步骤 3：启动开发服务器
-
+### 3. 启动开发服务器
 ```bash
-# 启动 Vite 开发服务器
 npm run dev
 ```
 
----
-
-## 📋 步骤 4：访问应用
-
-启动成功后，通过以下方式访问：
-
-### 主访问地址
+### 4. 访问应用
 ```
 http://your-server-ip:5173
 ```
 
-### 替代方案（如果 5173 端口被占用）
+---
+
+## 🔍 启动成功标志
+
+终端会显示：
 ```
-http://your-server-ip:5174
+VITE v7.3.x  ready in 1234 ms
+
+➜  Local:   http://localhost:5173/
+➜  Network: use --host to expose
 ```
+
+看到 `ready` 就说明启动成功了！
 
 ---
 
-## 🔧 Vite 配置说明
+## 🌐 网络访问
 
-当前 `vite.config.ts` 已配置：
-- 开发服务器端口：5173
-- API 代理：`/api` → `http://localhost:8000/api`
+### 如果是本地开发
+- 访问：`http://localhost:5173`
+- 代理：自动转发 `/api` → `http://localhost:8000/api`
+
+### 如果是服务器部署
+- 确保端口 5173 已开放
+- 防火墙允许 HTTP 流量
+- 配置反向代理（如需要）
 
 ---
 
-## 🛠️ 可能遇到的问题和解决方案
+## 🐛 常见问题
 
-### 问题 1：端口 5173 被占用
+### 问题 1：Vite 命令未找到
+```bash
+# 全局安装 vite
+npm install -g vite
+
+# 或使用 npx
+npx vite
+```
+
+### 问题 2：端口 5173 被占用
 ```bash
 # 查找占用进程
 lsof -i :5173
@@ -76,87 +86,64 @@ lsof -i :5173
 kill -9 <PID>
 ```
 
-### 问题 2：npm install 失败
+### 问题 3：npm install 失败
 ```bash
-# 清理缓存重试
+# 清理缓存
 npm cache clean --force
-npm install
 
-# 或使用淘宝镜像
+# 使用淘宝镜像
 npm install --registry=https://registry.npmmirror.com
 ```
 
-### 问题 3：API 连接失败
-- 确保 uvicorn 后端服务正在 8000 端口运行
-- 检查 Vite 代理配置
+### 问题 4：连接后端失败
+```bash
+# 检查后端是否运行
+curl http://localhost:8000/health
 
----
-
-## 📊 开发服务器信息
-
-启动成功后，终端会显示：
-
-```
-  VITE v7.3.8  ready in 1234 ms
-
-  ➜  Local:   http://0.0.0.0:5173/
-  ➜  Network: use --host to expose
-  ➜  press h + enter to show help
+# 如果后端需要启动
+cd projects/fund-manager/backend
+source .venv/bin/activate
+uvicorn app.main:app --reload --host 0.0.0.0
 ```
 
-看到 `ready` 就说明启动成功了！
+---
+
+## 📊 端口汇总
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| 前端 Vite | 5173 | 开发服务器（HMR）|
+| 后端 FastAPI | 8000 | API 服务器 |
+| 后端 API 文档 | 8000/docs | Swagger UI |
 
 ---
 
-## 🎨 前端功能（当前进度）
-
-### ✅ 已完成的页面
-- 登录页
-- 仪表盘（统计卡片、快捷操作、最近记录）
-- 基金列表
-- 基金详情
-- 投资者管理
-- 主布局（侧边栏、Header）
-
-### 🔄 待开发的功能
-- 申购/赎回/转账弹窗
-- 图表组件（NAV 走势、资产变化）
-- 历史记录页
-- 操作详情页
-
----
-
-## 🚀 快速命令总结
+## 🎯 完整启动流程
 
 ```bash
-# 完整流程（一键安装并启动）
-cd projects/fund-manager/frontend && rm -rf node_modules && npm install && npm run dev
+# 1. 进入目录
+cd projects/fund-manager/frontend
 
-# 仅启动（如果已安装）
-cd projects/fund-manager/frontend && npm run dev
+# 2. 清理并安装
+rm -rf node_modules
+npm install
 
-# 查看日志
+# 3. 启动开发服务器
 npm run dev
+
+# 4. 验证（新开终端）
+# 访问 http://your-server-ip:5173
+# 测试登录：admin / [REDACTED_TEST_PASSWORD]
 ```
 
 ---
 
-## 💡 开发提示
+## 🚀 启动命令
 
-1. **热更新**：修改文件后，Vite 会自动刷新浏览器
-2. **代理配置**：已配置 `/api` → `http://localhost:8000/api`
-3. **调试工具**：在浏览器中使用 React DevTools
-4. **API 文档**：后端 API 文档在 `http://localhost:8000/docs`
-
----
-
-## 🎯 当前状态
-
-- ✅ 服务器环境就绪（Node.js + npm）
-- ✅ 前端代码已拉取到最新
-- 🔄 正在安装依赖...
-- ⏳ 等待启动开发服务器
+```bash
+cd projects/fund-manager/frontend && npm run dev
+```
 
 ---
 
-安装依赖完成后，告诉我，我会确认启动状态！
+**准备就绪！** 现在可以启动前端开发服务器了！
