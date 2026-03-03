@@ -1,4 +1,5 @@
 """Initialize database with default admin account."""
+import os
 from sqlalchemy.orm import Session
 from app.db import SessionLocal, engine
 from app.models import Admin
@@ -7,6 +8,9 @@ from app.services.auth_service import AuthService
 
 def init_db():
     """Initialize database with default admin."""
+    # Ensure data directory exists
+    os.makedirs("data", exist_ok=True)
+
     # Create tables
     from app.db import Base
     Base.metadata.create_all(bind=engine)
