@@ -152,7 +152,6 @@ def transfer(
 
 # Operation history endpoints
 
-@router.get("/{investor_id}/operations", response_model=ResponseModel[OperationListResponse])
 @router.get("/operations", response_model=ResponseModel[OperationListResponse])
 def get_operations(
     fund_id: int,
@@ -165,6 +164,31 @@ def get_operations(
     service: InvestorService = Depends(get_investor_service)
 ):
     """Get fund operations."""
+    skip = (page - 1) * page_size
+    result = service.get_operations(
+        fund_id=fund_id,
+        investor_id=investor_id,
+        operation_type=operation_type,
+        start_date=start_date,
+        end_date=end_date,
+        skip=skip,
+        limit=page_size
+    )
+    return ResponseModel(data=result)
+
+
+@router.get("/{investor_id}/operations", response_model=ResponseModel[OperationListResponse])
+def get_investor_operations(
+    fund_id: int,
+    investor_id: int,
+    operation_type: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    service: InvestorService = Depends(get_investor_service)
+):
+    """Get operations for a specific investor."""
     skip = (page - 1) * page_size
     result = service.get_operations(
         fund_id=fund_id,

@@ -45,7 +45,7 @@ const request = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 // 创建基金 store
-export const useFundStore = create<FundStore>((set) => ({
+export const useFundStore = create<FundStore>((set, get) => ({
   funds: [],
   currentFund: null,
   loading: false,

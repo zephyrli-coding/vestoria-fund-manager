@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Form, Input, Button, Card, Typography, Checkbox } from 'antd';
+import { useState, useEffect } from 'react';
+import { Form, Input, Button, Card, Typography, Checkbox, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
@@ -8,24 +8,25 @@ const { Title } = Typography;
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
-  
+  const { login, isAuthenticated } = useAuthStore();
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    username: '',
-    password: '',
-    remember: false,
-  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  // 如果已登录，跳转到首页
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleSubmit = async (values: any) => {
     try {
       setLoading(true);
-      await login(form.username, form.password);
+      await login(values.username, values.password);
+      message.success('登录成功');
       navigate('/');
-    } catch (error: {
-      console.error('Login failed:', error);
+    } catch (error: any) {
+      message.error(error.message || '登录失败');
     } finally {
       setLoading(false);
     }
@@ -51,7 +52,13 @@ export default function Login() {
           <Title level={4} style={{ margin: 0, color: '#1890ff' }}>登录</Title>
         </div>
 
-        <Form onFinish={handleSubmit} layout="vertical" size="large">
+        <Form 
+          form={form}
+          onFinish={handleSubmit} 
+          layout="vertical" 
+          size="large"
+          initialValues={{ remember: false }}
+        >
           <Form.Item
             label="用户名"
             name="username"
@@ -60,22 +67,18 @@ export default function Login() {
             <Input
               prefix={<UserOutlined />}
               placeholder="admin"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
               size="large"
             />
           </Form.Item>
 
           <Form.Item
-            label="密玛"
+            label="密码"
             name="password"
-            rules={[{ required: true, message: '请输入密玛' }]}
+            rules={[{ required: true, message: '请输入密码' }]}
           >
             <Input.Password
               prefix={<LockOutlined />}
               placeholder="[REDACTED_TEST_PASSWORD]"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
               size="large"
             />
           </Form.Item>
@@ -93,7 +96,7 @@ export default function Login() {
               block
               style={{ background: '#1890ff', borderColor: '#1890ff' }}
             >
-              {loading ? '登录中...' : '登录'}
+              登录
             </Button>
           </Form.Item>
         </Form>
