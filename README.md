@@ -2,284 +2,248 @@
 
 一个现代化的基金管理系统，支持 CLI 和 Web UI 两种操作方式。
 
-## 技术栈
+---
 
-### 后端
-- **框架**: FastAPI
-- **数据库**: SQLite
-- **ORM**: SQLAlchemy
-- **CLI**: Typer
-- **认证**: JWT
+## 🚀 快速启动
 
-### 前端
-- **框架**: React + Vite
-- **UI 库**: Ant Design
-- **路由**: React Router
-- **状态管理**: Zustand
-- **图表**: Recharts
-
-## 项目结构
-
-```
-fund-manager/
-├── backend/              # 后端项目
-│   ├── app/              # 应用代码
-│   ├── data/             # SQLite 数据库
-│   ├── requirements.txt  # Python 依赖
-│   ├── init_db.py        # 数据库初始化
-│   └── start.sh          # 启动脚本
-├── frontend/             # 前端项目
-│   ├── src/
-│   └── package.json
-├── docs/                 # 文档
-│   └── API-DESIGN.md     # API 设计文档
-└── README.md             # 本文件
-```
-
-## 核心功能
-
-- ✅ 基金管理（创建、查询、更新、删除）
-- ✅ 投资者管理（添加、查询、更新）
-- ✅ 份额操作（申购、赎回、转账）
-- ✅ 净值更新
-- ✅ 历史记录查询
-- ✅ 数据可视化
-- ✅ CLI 命令行工具
-- ✅ Web 管理界面
-
-## 环境要求
-
-- **Python**: 3.12+ (推荐 3.12.x)
+### 1. 环境要求
+- **Python**: 3.12+
 - **Node.js**: 18+
 - **uv**: Python 包管理器（必须）
 
-## 环境安装
-
-### 1. 安装 uv（如果未安装）
-
 ```bash
-# Linux/Mac
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 添加到 PATH
-export PATH="$HOME/.local/bin:$PATH"
-
-# 验证安装
-uv --version
+# 安装 uv
+ curl -LsSf https://astral.sh/uv/install.sh | sh
+ export PATH="$HOME/.local/bin:$PATH"
 ```
 
-> ⚠️ **重要**: 必须使用 `uv` 而不是 `pip`，项目依赖 `pyproject.toml` 配置。
-
-### 2. 克隆项目
+### 2. 后端启动
 
 ```bash
-git clone git@github.com:<your-username>/fund-manager.git
-cd fund-manager
-```
-
-### 3. 后端初始化
-
-```bash
-cd backend
+cd projects/fund-manager/backend
 
 # 创建虚拟环境
 uv venv
 
 # 激活虚拟环境
-source .venv/bin/activate  # Linux/Mac
-# .venv\Scripts\activate    # Windows
+source .venv/bin/activate
 
-# 安装依赖
+# 安装依赖（如未安装）
 uv pip install -r requirements.txt
 
-# 初始化数据库（创建 admin 账号）
+# 初始化数据库（首次）
 python init_db.py
+
+# 启动后端
+./start.sh
+# 或手动: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-数据库文件将创建在 `backend/data/fund_manager.db`
+**后端服务：**
+- API: http://localhost:8000
+- API 文档: http://localhost:8000/docs
+- 默认账号: `admin` / `[REDACTED_TEST_PASSWORD]`
 
-**默认账号:**
-- 用户名: `admin`
-- 密码: `[REDACTED_TEST_PASSWORD]`
-
-### 4. 前端初始化
+### 3. 前端启动
 
 ```bash
-cd frontend
+cd projects/fund-manager/frontend
 
-# 安装依赖
+# 安装依赖（如未安装）
 npm install
 
-# 或如果使用 pnpm
-pnpm install
-```
-
-## 运行
-
-### 启动后端
-
-```bash
-cd backend
-
-# 方式1: 使用启动脚本
-./start.sh
-
-# 方式2: 手动启动
-source .venv/bin/activate
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-访问:
-- API 地址: http://localhost:8000
-- API 文档: http://localhost:8000/docs
-- 认证: POST `/auth/login` (username=admin, password=[REDACTED_TEST_PASSWORD])
-
-### 启动前端
-
-```bash
-cd frontend
+# 启动前端
 npm run dev
 ```
 
-访问: http://localhost:3000
+**前端服务：**
+- http://localhost:5173
 
-## 配置说明
-
-### 后端配置 (backend/app/config.py)
-
-| 配置项 | 说明 | 默认值 |
-|--------|------|--------|
-| `DATABASE_URL` | SQLite 数据库路径 | `sqlite:///./data/fund_manager.db` |
-| `SECRET_KEY` | JWT 密钥 | 自动生成 |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token 过期时间 | 30 分钟 |
-
-**自定义配置:**
-
-创建 `.env` 文件在 `backend/` 目录:
+### 4. 访问系统
 
 ```bash
-# backend/.env
-DATABASE_URL=sqlite:///./data/fund_manager.db
-SECRET_KEY=your-secret-key-here
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+# SSH 隧道穿透（远程服务器）
+ssh -L 5173:localhost:5173 -L 8000:localhost:8000 linuxuser@45.76.159.208
+
+# 本地访问
+http://localhost:5173
 ```
 
-### 前端配置 (frontend/.env)
+---
+
+## 📦 技术栈
+
+### 后端
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| FastAPI | ^0.115.0 | Web 框架 |
+| SQLAlchemy | ^2.0.35 | ORM |
+| SQLite | - | 数据库 |
+| Pydantic | ^2.9.2 | 数据验证 |
+| JWT | - | 认证 |
+| Typer | - | CLI 框架 |
+
+### 前端
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| React | ^19.2.0 | UI 框架 |
+| Vite | ^6.0.0 | 构建工具 |
+| TypeScript | - | 类型系统 |
+| Zustand | ^5.0.2 | 状态管理 |
+| Lucide React | ^0.460.0 | 图标库 |
+
+---
+
+## 🗺️ 前端页面 URL
+
+| 路径 | 页面 | 说明 |
+|------|------|------|
+| `/login` | 登录页 | 管理员登录 |
+| `/` | 仪表盘 | 资产概览、基金列表 |
+| `/funds` | 基金列表 | 所有基金、搜索、筛选 |
+| `/funds/create` | 创建基金 | 新建基金表单 |
+| `/funds/:id` | 基金详情 | 概览、投资者、操作历史 |
+| `/funds/:id/edit` | 编辑基金 | 修改名称、删除 |
+
+**页面结构说明：**
+- 所有页面需要登录（除 `/login`）
+- 侧边栏导航：仪表盘、基金管理
+- 投资者功能通过基金详情页访问（`/funds/:id` → 投资者标签）
+
+---
+
+## 🔌 后端 API 接口
+
+### 认证
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/auth/login` | 登录获取 Token |
+| GET | `/api/v1/auth/me` | 获取当前用户信息 |
+
+### 基金
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/funds` | 获取基金列表 |
+| POST | `/api/v1/funds` | 创建基金 |
+| GET | `/api/v1/funds/{id}` | 获取基金详情 |
+| PUT | `/api/v1/funds/{id}` | 更新基金名称 |
+| DELETE | `/api/v1/funds/{id}` | 删除基金 |
+| POST | `/api/v1/funds/{id}/update-nav` | 更新净值 |
+| GET | `/api/v1/funds/{id}/history` | 获取历史记录 |
+| GET | `/api/v1/funds/{id}/chart` | 获取图表数据 |
+
+### 投资者
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/funds/{id}/investors` | 获取投资者列表 |
+| POST | `/api/v1/funds/{id}/investors` | 添加投资者 |
+| GET | `/api/v1/funds/{id}/investors/{id}` | 投资者详情 |
+| PUT | `/api/v1/funds/{id}/investors/{id}` | 更新投资者 |
+
+### 份额操作
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/funds/{id}/investors/{id}/invest` | 申购 |
+| POST | `/api/v1/funds/{id}/investors/{id}/redeem` | 赎回 |
+| POST | `/api/v1/funds/{id}/investors/transfer` | 转账 |
+
+**响应格式：**
+```json
+{
+  "code": 0,        // 0 = 成功, 非0 = 错误
+  "message": "success",
+  "data": { ... }
+}
+```
+
+---
+
+## 📋 功能清单
+
+### ✅ 已实现
+- [x] 基金 CRUD（创建、查询、更新、删除）
+- [x] 投资者管理（添加、搜索、列表）
+- [x] 申购/赎回/转账（完整操作流）
+- [x] 净值更新（自动计算 NAV）
+- [x] 操作历史（审计追踪）
+- [x] JWT 认证
+- [x] 响应式 UI（支持宽屏）
+
+### ⏳ 待实现（后续迭代）
+- [ ] 数据图表（净值走势、资产变化）
+- [ ] 数据导出（CSV/Excel）
+- [ ] 多管理员权限管理
+- [ ] 移动端适配优化
+- [ ] 实时通知（WebSocket）
+- [ ] 数据备份/恢复
+
+---
+
+## 🗂️ 项目结构
+
+```
+projects/fund-manager/
+├── backend/              # 后端
+│   ├── app/
+│   │   ├── api/          # API 路由
+│   │   ├── models/       # 数据库模型
+│   │   ├── services/     # 业务逻辑
+│   │   └── cli/          # CLI 工具
+│   ├── data/             # SQLite 数据库
+│   └── requirements.txt
+├── frontend/             # 前端
+│   ├── src/
+│   │   ├── pages/        # 页面组件
+│   │   ├── stores/       # Zustand 状态
+│   │   └── api/          # API 封装
+│   └── package.json
+├── docs/                 # 文档
+│   ├── API-DESIGN.md     # API 详细设计
+│   └── BACKEND_CAPABILITIES.md  # 后端能力清单
+└── test_samples/         # 测试用例
+```
+
+---
+
+## 🔧 常用命令
 
 ```bash
-# frontend/.env
-VITE_API_BASE_URL=http://localhost:8000
+# 后端
+./start.sh                              # 启动后端
+python init_db.py                       # 初始化数据库
+python -m app.cli --help                # CLI 帮助
+
+# 前端
+npm run dev                             # 开发模式
+npm run build                           # 构建
+
+# 数据库（开发）
+rm -rf backend/data/ && python init_db.py  # 重置数据库
 ```
 
-## 测试验证
+---
 
-### API 测试
+## 📝 核心概念
 
-```bash
-# 1. 登录获取 token
-curl -X POST http://localhost:8000/auth/login \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin&password=[REDACTED_TEST_PASSWORD]"
+### 基金 → 投资者 → 操作
+- **投资者属于基金**：必须先创建基金，再添加投资者
+- **操作在基金内进行**：申购、赎回、转账都在基金上下文
+- **净值驱动一切**：NAV = 总资产 / 总份额
 
-# 2. 创建基金
-curl -X POST http://localhost:8000/funds/ \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"测试基金","start_date":"2024-01-01"}'
-
-# 3. 查看基金列表
-curl http://localhost:8000/funds/ \
-  -H "Authorization: Bearer <token>"
+### 计算逻辑
+```
+申购: 份额 = 金额 / NAV
+赎回: 金额 = 份额 × NAV
+转账: 份额不变，基金总份额不变
 ```
 
-### 完整测试用例
+---
 
-项目包含测试脚本，验证核心业务流程:
+## 📄 其他文档
 
-```bash
-cd backend
-source .venv/bin/activate
-python test_case_1.py
-```
-
-测试场景:
-1. 创建基金 A
-2. 投资者 aa 投入 100
-3. 更新净值（资金→150）
-4. 投资者 bb 投入 100
-5. 更新净值（资金→200）
-6. 验证: aa 赚钱，bb 亏钱
-
-## CLI 工具
-
-```bash
-cd backend
-source .venv/bin/activate
-
-# 查看帮助
-python -m app.cli --help
-
-# 创建基金
-python -m app.cli fund create "基金A" 2024-01-01
-
-# 添加投资者
-python -m app.cli investor add 1 "投资者甲" 2024-01-01
-
-# 申购
-python -m app.cli investor invest 1 1 100 2024-01-01
-```
-
-## 文档
-
-- [API 设计文档](./docs/API-DESIGN.md) - 完整的 API 接口定义
-- [项目初始化指南](./README-SETUP.md) - 详细的环境搭建步骤
-- [技术方案](./PLAN.md) - 架构设计和技术选型
-
-## 开发路线
-
-### Phase 1: 后端核心功能 ✅
-- [x] API 设计文档
-- [x] 数据库模型定义
-- [x] 业务逻辑实现
-- [x] API 接口实现
-- [x] CLI 工具实现
-
-### Phase 2: 前端开发 ⏳
-- [ ] 前端框架搭建
-- [ ] 认证页面
-- [ ] 基金管理页面
-- [ ] 投资者管理页面
-- [ ] 数据可视化
-
-### Phase 3: 测试与优化（待开始）
-- [ ] 单元测试
-- [ ] 集成测试
-- [ ] 性能优化
-- [ ] 部署文档
-
-## 常见问题
-
-### Q: `uv` 命令找不到
-```bash
-# 检查安装位置
-~/.local/bin/uv --version
-
-# 添加到 PATH
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-### Q: Python 3.13 兼容性问题
-项目已在 Python 3.12 测试通过。如果使用 Python 3.13，可能会遇到 pydantic-core 构建问题，建议降级到 3.12:
-```bash
-uv venv --python 3.12
-```
-
-### Q: 数据库已存在/报错
-```bash
-# 删除数据库重新初始化
-rm -rf backend/data/
-cd backend && python init_db.py
-```
+- [API 详细设计](./docs/API-DESIGN.md) - 完整的 API 规范
+- [后端能力清单](./docs/BACKEND_CAPABILITIES.md) - 后端功能说明
+- [测试用例](./test_samples/) - 复杂场景测试
 
 ---
 

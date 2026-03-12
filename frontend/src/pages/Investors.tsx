@@ -1,459 +1,544 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Table, Card, Button, Space, Tag, Dropdown, Modal, Form, Input, message, Row, Col, Statistic } from 'antd';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  PlusOutlined,
-  DeleteOutlined,
-  MoreOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
-import type { Fund, Investor } from '@/types/api';
+  ArrowLeft,
+  Plus,
+  Search,
+  User,
+  Wallet,
+  PieChart,
+  TrendingUp,
+  MoreHorizontal,
+  Edit3,
+  Trash2,
+  Check,
+  X
+} from 'lucide-react';
+import { useFundStore } from '@/stores/fund';
+import type { Investor, Fund } from '@/types/api';
 
 export default function Investors() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { fetchFundById, fetchInvestors, addInvestor, investors, currentFund, loading: storeLoading } = useFundStore();
 
   const [fund, setFund] = useState<Fund | null>(null);
-  const [investors, setInvestors] = useState<Investor[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // 添加投资者
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [addForm] = Form.useForm();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newInvestorName, setNewInvestorName] = useState('');
   const [adding, setAdding] = useState(false);
-  
-  // 删除投资者
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [deleteInvestorId, setDeleteInvestorId] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
-  // 份额操作
-  const [operationModalVisible, setOperationModalVisible] = useState(false);
-  const [operationType, setOperationType] = useState<'invest' | 'redeem' | 'transfer' | null>(null);
-  const [operationForm] = Form.useForm();
-  const [operating, setOperating] = useState(false);
-  const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
-
-  const token = localStorage.getItem('token');
-  const headers = token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-
-  // 获取基金和投资者数据
   useEffect(() => {
-    const fetchData = async () => {
+    const loadData = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        // 获取基金详情
-        const fundRes = await fetch(`/api/v1/funds/${id}`, { headers });
-        const fundData = await fundRes.json();
-        if (fundData.code === 0) {
-          setFund(fundData.data);
+        const fundData = await fetchFundById(parseInt(id));
+        if (fundData) {
+          setFund(fundData);
         }
-
-        // 获取投资者列表
-        const invRes = await fetch(`/api/v1/funds/${id}/investors`, { headers });
-        const invData = await invRes.json();
-        if (invData.code === 0) {
-          setInvestors(invData.data.items || []);
-        }
-      } catch (error: any) {
-        message.error('获取数据失败：' + error.message);
+        await fetchInvestors(parseInt(id));
+      } catch (error) {
+        console.error('Failed to load data:', error);
       } finally {
         setLoading(false);
       }
     };
+    loadData();
+  }, [id, fetchFundById, fetchInvestors]);
 
-    if (id) {
-      fetchData();
-    }
-  }, [id]);
+  const filteredInvestors = investors.filter((inv) =>
+    inv.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  // 添加投资者
-  const handleAdd = async () => {
+  const handleAddInvestor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newInvestorName.trim() || !id) return;
+    
+    setAdding(true);
     try {
-      const values = await addForm.validateFields();
-      setAdding(true);
-      
-      const response = await fetch(`/api/v1/funds/${id}/investors`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ name: values.name }),
-      });
-      const data = await response.json();
-
-      if (data.code === 0) {
-        message.success('投资者添加成功');
-        setInvestors([...investors, data.data]);
-        setAddModalVisible(false);
-        addForm.resetFields();
-      } else {
-        message.error(data.message || '添加失败');
-      }
-    } catch (error: any) {
-      message.error(error.message || '添加失败');
+      await addInvestor(parseInt(id), newInvestorName.trim());
+      setShowAddModal(false);
+      setNewInvestorName('');
+      // 重新获取投资者列表
+      await fetchInvestors(parseInt(id));
+    } catch (error) {
+      console.error('Failed to add investor:', error);
     } finally {
       setAdding(false);
     }
   };
 
-  // 删除投资者
-  const handleDelete = async () => {
-    if (!deleteInvestorId) return;
-    
-    setDeleting(true);
-    try {
-      const response = await fetch(`/api/v1/funds/${id}/investors/${deleteInvestorId}`, {
-        method: 'DELETE',
-        headers,
-      });
-      const data = await response.json();
-
-      if (data.code === 0) {
-        message.success('投资者删除成功');
-        setInvestors(investors.filter(inv => inv.id !== deleteInvestorId));
-        setDeleteModalVisible(false);
-      } else {
-        message.error(data.message || '删除失败');
-      }
-    } catch (error: any) {
-      message.error(error.message || '删除失败');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // 打开份额操作弹窗
-  const openOperationModal = (type: 'invest' | 'redeem' | 'transfer', investor: Investor) => {
-    setOperationType(type);
-    setSelectedInvestor(investor);
-    operationForm.resetFields();
-    setOperationModalVisible(true);
-  };
-
-  // 执行份额操作
-  const handleOperation = async () => {
-    try {
-      const values = await operationForm.validateFields();
-      setOperating(true);
-
-      let endpoint = '';
-      let body: any = {};
-
-      switch (operationType) {
-        case 'invest':
-          endpoint = `/api/v1/funds/${id}/investors/${selectedInvestor?.id}/invest`;
-          body = { amount: values.amount, amount_type: 'balance' };
-          break;
-        case 'redeem':
-          endpoint = `/api/v1/funds/${id}/investors/${selectedInvestor?.id}/redeem`;
-          body = { share: values.share };
-          break;
-        case 'transfer':
-          endpoint = `/api/v1/funds/${id}/investors/transfer`;
-          body = { from_investor_id: selectedInvestor?.id, to_investor_id: values.to_investor_id, share: values.share };
-          break;
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-      const data = await response.json();
-
-      if (data.code === 0) {
-        message.success('操作成功');
-        setOperationModalVisible(false);
-        // 刷新数据
-        const invRes = await fetch(`/api/v1/funds/${id}/investors`, { headers });
-        const invData = await invRes.json();
-        if (invData.code === 0) {
-          setInvestors(invData.data || []);
-        }
-        const fundRes = await fetch(`/api/v1/funds/${id}`, { headers });
-        const fundData = await fundRes.json();
-        if (fundData.code === 0) {
-          setFund(fundData.data);
-        }
-      } else {
-        message.error(data.message || '操作失败');
-      }
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
-    } finally {
-      setOperating(false);
-    }
-  };
-
-  const columns = [
-    {
-      title: '投资者姓名',
-      dataIndex: 'name',
-      key: 'name',
-    },
-    {
-      title: '持有份额',
-      dataIndex: 'share',
-      key: 'share',
-      render: (share: number) => share.toFixed(4),
-    },
-    {
-      title: '持有市值',
-      dataIndex: 'balance',
-      key: 'balance',
-      render: (balance: number) => `¥${balance.toFixed(2)}`,
-    },
-    {
-      title: '占比',
-      key: 'ratio',
-      render: (_: any, record: Investor) => {
-        const ratio = fund?.total_share ? (record.share / fund.total_share) * 100 : 0;
-        return <Tag color={ratio > 50 ? 'red' : 'blue'}>{ratio.toFixed(2)}%</Tag>;
-      },
-    },
-    {
-      title: '加入日期',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (date: string) => new Date(date).toLocaleDateString('zh-CN'),
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 280,
-      render: (_: any, record: Investor) => (
-        <Space>
-          <Button
-            type="primary"
-            size="small"
-            icon={<ArrowUpOutlined />}
-            onClick={() => openOperationModal('invest', record)}
-          >
-            申购
-          </Button>
-          <Button
-            size="small"
-            icon={<ArrowDownOutlined />}
-            onClick={() => openOperationModal('redeem', record)}
-          >
-            赎回
-          </Button>
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'transfer',
-                  label: '转账',
-                  icon: <SwapOutlined />,
-                  onClick: () => openOperationModal('transfer', record),
-                },
-                {
-                  key: 'delete',
-                  label: '删除',
-                  icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
-                  onClick: () => {
-                    setDeleteInvestorId(record.id);
-                    setDeleteModalVisible(true);
-                  },
-                  danger: true,
-                },
-              ],
-            }}
-          >
-            <Button icon={<MoreOutlined />} size="small" />
-          </Dropdown>
-        </Space>
-      ),
-    },
-  ];
-
-  if (!fund) {
+  if (loading || storeLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px', color: '#999' }}>
-        {loading ? '加载中...' : '未找到该基金'}
+      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        加载中...
       </div>
     );
   }
 
+  const displayFund = fund || currentFund;
+
   return (
-    <div>
-      {/* 面包屑 */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px',
-        paddingBottom: '16px',
-        borderBottom: '1px solid #f0f0f0',
-      }}>
-        <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 600, margin: 0 }}>
-            {fund.name} - 投资者管理
-          </h2>
-          <div style={{ color: '#999', marginTop: '4px' }}>
-            管理基金投资者及份额操作
-          </div>
-        </div>
-        <Button type="text" onClick={() => navigate(`/funds/${id}`)}>
-          返回基金详情
-        </Button>
+    <div className="animate-fade-in">
+      {/* Header */}
+      <div style={{ marginBottom: '32px' }}>
+        {id ? (
+          <>
+            <Link
+              to={`/funds/${id}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '14px',
+                color: 'var(--text-muted)',
+                textDecoration: 'none',
+                marginBottom: '16px',
+              }}
+            >
+              <ArrowLeft size={16} />
+              返回基金详情
+            </Link>
+            <h1
+              style={{
+                fontSize: '32px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: '0 0 8px 0',
+              }}
+            >
+              {displayFund?.name || '基金'} - 投资者
+            </h1>
+          </>
+        ) : (
+          <h1
+            style={{
+              fontSize: '32px',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '0 0 8px 0',
+            }}
+          >
+            投资者管理
+          </h1>
+        )}
+        <p style={{ fontSize: '15px', color: 'var(--text-muted)', margin: 0 }}>
+          管理基金投资者，查看持仓和交易记录
+        </p>
       </div>
 
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col span={8}>
-          <Card>
-            <Statistic
-              title="投资者总数"
-              value={investors.length}
-              valueStyle={{ fontSize: '36px', color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card>
-            <Statistic
-              title="当前净值"
-              value={fund.net_asset_value}
-              prefix="¥"
-              precision={4}
-              valueStyle={{ fontSize: '36px', color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card>
-            <Statistic
-              title="总份额"
-              value={fund.total_share}
-              precision={4}
-              valueStyle={{ fontSize: '36px', color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* 操作栏 */}
-      <Card style={{ marginBottom: '24px' }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          size="large"
-          onClick={() => setAddModalVisible(true)}
-        >
-          添加投资者
-        </Button>
-      </Card>
-
-      {/* 投资者列表 */}
-      <Card title="投资者列表">
-        <Table
-          columns={columns}
-          dataSource={investors}
-          rowKey="id"
-          loading={loading}
-          pagination={false}
-        />
-      </Card>
-
-      {/* 添加投资者弹窗 */}
-      <Modal
-        title="添加投资者"
-        open={addModalVisible}
-        onOk={handleAdd}
-        onCancel={() => {
-          setAddModalVisible(false);
-          addForm.resetFields();
+      {/* Action Bar */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          marginBottom: '24px',
+          flexWrap: 'wrap',
         }}
-        confirmLoading={adding}
-        okText="添加"
-        cancelText="取消"
       >
-        <Form form={addForm} layout="vertical">
-          <Form.Item
-            name="name"
-            label="投资者姓名"
-            rules={[{ required: true, message: '请输入投资者姓名' }]}
+        <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '300px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '12px 16px',
+              background: 'var(--bg-primary)',
+              borderRadius: '12px',
+              border: '1px solid var(--border-color)',
+              flex: 1,
+              maxWidth: '400px',
+            }}
           >
-            <Input placeholder="请输入投资者姓名" />
-          </Form.Item>
-        </Form>
-      </Modal>
+            <Search size={18} color="var(--text-muted)" />
+            <input
+              type="text"
+              placeholder="搜索投资者..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                flex: 1,
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '14px',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+        </div>
 
-      {/* 删除确认弹窗 */}
-      <Modal
-        title="确认删除"
-        open={deleteModalVisible}
-        onOk={handleDelete}
-        onCancel={() => {
-          setDeleteModalVisible(false);
-          setDeleteInvestorId(null);
-        }}
-        confirmLoading={deleting}
-        okText="删除"
-        cancelText="取消"
-        okType="danger"
-      >
-        <p>确定要删除该投资者吗？此操作不可恢复。</p>
-      </Modal>
+        {id && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              borderRadius: '12px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+            }}
+          >
+            <Plus size={18} />
+            添加投资者
+          </button>
+        )}
+      </div>
 
-      {/* 份额操作弹窗 */}
-      <Modal
-        title={
-          operationType === 'invest' ? '申购份额' : 
-          operationType === 'redeem' ? '赎回份额' : 
-          '转账'
-        }
-        open={operationModalVisible}
-        onOk={handleOperation}
-        onCancel={() => {
-          setOperationModalVisible(false);
-          setSelectedInvestor(null);
-          operationForm.resetFields();
+      {/* Investors Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+          gap: '20px',
         }}
-        confirmLoading={operating}
-        okText="确认"
-        cancelText="取消"
       >
-        <Form form={operationForm} layout="vertical">
-          <Form.Item>
-            <div style={{ marginBottom: '16px' }}>
-              <strong>投资者：</strong> {selectedInvestor?.name}
+        {filteredInvestors.length === 0 ? (
+          <div
+            style={{
+              gridColumn: '1 / -1',
+              textAlign: 'center',
+              padding: '80px',
+              background: 'var(--bg-primary)',
+              borderRadius: '20px',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <div
+              style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '20px',
+                background: 'var(--bg-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 20px',
+              }}
+            >
+              <User size={32} color="var(--text-muted)" />
             </div>
-          </Form.Item>
-          
-          {operationType === 'invest' && (
-            <Form.Item
-              name="amount"
-              label="投资金额 (¥)"
-              rules={[{ required: true, message: '请输入投资金额' }]}
+            <p style={{ color: 'var(--text-muted)', fontSize: '16px' }}>
+              {searchQuery ? '未找到匹配的投资者' : '暂无投资者'}
+            </p>
+            {id && !searchQuery && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                style={{
+                  marginTop: '16px',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'var(--primary-color)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                添加第一个投资者
+              </button>
+            )}
+          </div>
+        ) : (
+          filteredInvestors.map((investor) => (
+            <div
+              key={investor.id}
+              style={{
+                background: 'var(--bg-primary)',
+                borderRadius: '16px',
+                padding: '20px',
+                border: '1px solid var(--border-color)',
+                transition: 'all 0.3s ease',
+              }}
+              className="hover-lift"
             >
-              <Input type="number" placeholder="请输入投资金额" />
-            </Form.Item>
-          )}
-          
-          {(operationType === 'redeem' || operationType === 'transfer') && (
-            <Form.Item
-              name="share"
-              label="份额数量"
-              rules={[{ required: true, message: '请输入份额数量' }]}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: '20px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '18px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {investor.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h3
+                      style={{
+                        fontSize: '16px',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        margin: '0 0 2px 0',
+                      }}
+                    >
+                      {investor.name}
+                    </h3>
+                    <p
+                      style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}
+                    >
+                      ID: {investor.id}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                  <button
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: 'var(--danger-color)',
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '16px',
+                  padding: '16px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '12px',
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    <PieChart size={14} color="var(--text-muted)" />
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      持有份额
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: '18px',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      margin: 0,
+                    }}
+                  >
+                    {investor.share?.toFixed(4) || '0.0000'}
+                  </p>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    <Wallet size={14} color="var(--text-muted)" />
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      资产价值
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: '18px',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      margin: 0,
+                    }}
+                  >
+                    ¥{investor.balance?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) || '0.00'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Add Investor Modal */}
+      {showAddModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-primary)',
+              borderRadius: '20px',
+              padding: '32px',
+              maxWidth: '420px',
+              width: '90%',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                fontSize: '20px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: '0 0 20px 0',
+              }}
             >
-              <Input type="number" placeholder="请输入份额数量" />
-            </Form.Item>
-          )}
-          
-          {operationType === 'transfer' && (
-            <Form.Item
-              name="to_investor_id"
-              label="转入投资者"
-              rules={[{ required: true, message: '请选择转入投资者' }]}
-            >
-              <Input placeholder="请输入投资者ID" />
-            </Form.Item>
-          )}
-        </Form>
-      </Modal>
+              添加投资者
+            </h3>
+
+            <form onSubmit={handleAddInvestor}>
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  投资者姓名 *
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <User size={20} color="var(--text-muted)" />
+                  <input
+                    type="text"
+                    value={newInvestorName}
+                    onChange={(e) => setNewInvestorName(e.target.value)}
+                    placeholder="请输入投资者姓名"
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontSize: '15px',
+                      color: 'var(--text-primary)',
+                    }}
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  取消
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={adding}
+                  style={{
+                    flex: 1,
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'var(--primary-color)',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: adding ? 'not-allowed' : 'pointer',
+                    opacity: adding ? 0.7 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  {adding ? '添加中...' : <><Check size={16} /> 确认添加</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

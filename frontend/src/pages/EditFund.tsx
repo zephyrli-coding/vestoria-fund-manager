@@ -1,169 +1,434 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Button, DatePicker, message, Spin } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Save,
+  FileText,
+  Calendar,
+  AlertCircle,
+  Check,
+  Trash2
+} from 'lucide-react';
+import { useFundStore } from '@/stores/fund';
 import type { Fund } from '@/types/api';
 
 export default function EditFund() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
+  const { fetchFundById, updateFund, deleteFund } = useFundStore();
+  
   const [fund, setFund] = useState<Fund | null>(null);
+  const [name, setName] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // 获取基金详情
   useEffect(() => {
-    const fetchFund = async () => {
-      setFetching(true);
+    const loadFund = async () => {
+      if (!id) return;
+      setLoading(true);
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/v1/funds/${id}`, {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        });
-        const data = await response.json();
-        if (data.code === 0) {
-          setFund(data.data);
-          form.setFieldsValue({
-            name: data.data.name,
-            start_date: dayjs(data.data.start_date),
-          });
-        } else {
-          message.error(data.message || '获取基金详情失败');
+        const data = await fetchFundById(parseInt(id));
+        if (data) {
+          setFund(data);
+          setName(data.name);
+          setStartDate(data.start_date);
         }
-      } catch (error: any) {
-        message.error('网络错误：' + error.message);
+      } catch (err) {
+        setError('加载基金信息失败');
       } finally {
-        setFetching(false);
+        setLoading(false);
       }
     };
+    loadFund();
+  }, [id, fetchFundById]);
 
-    if (id) {
-      fetchFund();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !name.trim()) {
+      setError('请输入基金名称');
+      return;
     }
-  }, [id, form]);
 
-  const handleSubmit = async (values: any) => {
-    setLoading(true);
+    setSaving(true);
+    setError('');
+
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/v1/funds/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-        body: JSON.stringify({
-          name: values.name,
-          start_date: values.start_date.format('YYYY-MM-DD'),
-        }),
-      });
-      const data = await response.json();
-      
-      if (data.code === 0) {
-        message.success('基金更新成功');
-        navigate('/funds');
-      } else {
-        message.error(data.message || '更新失败');
-      }
-    } catch (error: any) {
-      message.error(error.message || '更新失败');
+      await updateFund(parseInt(id), { name: name.trim(), start_date: startDate });
+      navigate('/funds');
+    } catch (err: any) {
+      setError(err.message || '保存失败');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  if (fetching) {
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      await deleteFund(parseInt(id));
+      navigate('/funds');
+    } catch (err) {
+      setError('删除失败');
+    }
+  };
+
+  if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px' }}>
-        <Spin size="large" />
-        <div style={{ marginTop: '16px', color: '#999' }}>加载中...</div>
+      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        加载中...
       </div>
     );
   }
 
   if (!fund) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px', color: '#999' }}>
-        未找到该基金
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <p style={{ color: 'var(--text-muted)' }}>基金不存在</p>
+        <Link to="/funds" style={{ color: 'var(--primary-color)' }}>返回基金列表</Link>
       </div>
     );
   }
 
   return (
-    <div>
-      {/* 面包屑 */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px',
-        paddingBottom: '16px',
-        borderBottom: '1px solid #f0f0f0',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Button 
-            icon={<ArrowLeftOutlined />} 
-            onClick={() => navigate('/funds')}
-            type="text"
+    <div className="animate-fade-in" style={{ maxWidth: '600px' }}>
+      <Link
+        to={`/funds/${id}`}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontSize: '14px',
+          color: 'var(--text-muted)',
+          textDecoration: 'none',
+          marginBottom: '24px',
+        }}
+      >
+        <ArrowLeft size={16} />
+        返回基金详情
+      </Link>
+
+      <div
+        style={{
+          background: 'var(--bg-primary)',
+          borderRadius: '20px',
+          padding: '32px',
+          border: '1px solid var(--border-color)',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}
           >
-            返回
-          </Button>
-          <h2 style={{ fontSize: '24px', fontWeight: 600, margin: 0 }}>
+            <Save size={28} color="white" />
+          </div>
+          <h1
+            style={{
+              fontSize: '24px',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '0 0 8px 0',
+            }}
+          >
             编辑基金
-          </h2>
+          </h1>
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0 }}>
+            修改 "{fund.name}" 的信息
+          </p>
         </div>
+
+        {error && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              color: 'var(--danger-color)',
+              fontSize: '14px',
+              marginBottom: '20px',
+            }}
+          >
+            <AlertCircle size={18} />
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '24px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
+              }}
+            >
+              基金名称 *
+            </label>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '14px 16px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <FileText size={20} color="var(--text-muted)" />
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="例如：稳健成长一号"
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  fontSize: '15px',
+                  color: 'var(--text-primary)',
+                }}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '32px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
+              }}
+            >
+              成立日期 *
+            </label>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '14px 16px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <Calendar size={20} color="var(--text-muted)" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  fontSize: '15px',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'inherit',
+                }}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+            <Link
+              to={`/funds/${id}`}
+              style={{
+                flex: 1,
+                padding: '14px 24px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-secondary)',
+                fontSize: '15px',
+                fontWeight: 600,
+                textAlign: 'center',
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              取消
+            </Link>
+
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 2,
+                padding: '14px 24px',
+                borderRadius: '12px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                color: 'white',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              {saving ? (
+                <>保存中...</>
+              ) : (
+                <>
+                  <Check size={18} />
+                  保存修改
+                </>
+              )}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            style={{
+              width: '100%',
+              padding: '14px 24px',
+              borderRadius: '12px',
+              border: '1px solid var(--danger-color)',
+              background: 'transparent',
+              color: 'var(--danger-color)',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+            }}
+          >
+            <Trash2 size={18} />
+            删除基金
+          </button>
+        </form>
       </div>
 
-      <Card style={{ maxWidth: 600, margin: '0 auto' }}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowDeleteModal(false)}
         >
-          <Form.Item
-            label="基金名称"
-            name="name"
-            rules={[
-              { required: true, message: '请输入基金名称' },
-              { max: 100, message: '基金名称不能超过100个字符' },
-            ]}
+          <div
+            style={{
+              background: 'var(--bg-primary)',
+              borderRadius: '20px',
+              padding: '32px',
+              maxWidth: '420px',
+              width: '90%',
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <Input placeholder="请输入基金名称" size="large" />
-          </Form.Item>
-
-          <Form.Item
-            label="成立日期"
-            name="start_date"
-            rules={[{ required: true, message: '请选择成立日期' }]}
-          >
-            <DatePicker 
-              style={{ width: '100%' }} 
-              size="large"
-              format="YYYY-MM-DD"
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
-              <Button onClick={() => navigate('/funds')} size="large">
-                取消
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                icon={<SaveOutlined />}
-                size="large"
-                style={{ background: '#1890ff', borderColor: '#1890ff' }}
-              >
-                保存
-              </Button>
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '16px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 20px',
+                color: 'var(--danger-color)',
+              }}
+            >
+              <Trash2 size={32} />
             </div>
-          </Form.Item>
-        </Form>
-      </Card>
+
+            <h3
+              style={{
+                fontSize: '20px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                textAlign: 'center',
+                margin: '0 0 8px 0',
+              }}
+            >
+              确认删除
+            </h3>
+
+            <p
+              style={{
+                fontSize: '14px',
+                color: 'var(--text-muted)',
+                textAlign: 'center',
+                margin: '0 0 24px 0',
+              }}
+            >
+              确定要删除基金 "{fund.name}" 吗？此操作无法撤销。
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                取消
+              </button>
+
+              <button
+                onClick={handleDelete}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'var(--danger-color)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
