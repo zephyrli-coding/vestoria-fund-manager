@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import {
   ArrowLeft,
   Edit3,
   TrendingUp,
@@ -29,6 +38,7 @@ export default function FundDetail() {
   const [fund, setFund] = useState<Fund | null>(null);
   const [investors, setInvestors] = useState<Investor[]>([]);
   const [operations, setOperations] = useState<Operation[]>([]);
+  const [chartData, setChartData] = useState<{ date: string; nav: number; balance: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'investors' | 'history'>('overview');
 
@@ -73,6 +83,7 @@ export default function FundDetail() {
         }
         await loadInvestors();
         await loadOperations(); // 预加载操作历史
+        await loadChartData();
       } catch (error) {
         console.error('Failed to load fund:', error);
       } finally {
@@ -101,6 +112,24 @@ export default function FundDetail() {
     } catch (error) {
       console.error('Failed to load operations:', error);
       setOperations([]);
+    }
+  };
+
+  const loadChartData = async () => {
+    if (!id) return;
+    try {
+      const chartData = await store.fetchChartData(parseInt(id));
+      if (chartData && chartData.nav) {
+        // 合并数据
+        const merged = chartData.nav.map((item, index) => ({
+          date: item.date,
+          nav: item.value,
+          balance: chartData.balance[index]?.value || 0,
+        }));
+        setChartData(merged);
+      }
+    } catch (error) {
+      console.error('Failed to load chart data:', error);
     }
   };
 
@@ -477,42 +506,109 @@ export default function FundDetail() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '20px',
+                gridTemplateColumns: '2fr 1fr',
+                gap: '24px',
               }}
             >
+              {/* 左侧：图表 */}
               <div
                 style={{
-                  padding: '20px',
                   background: 'var(--bg-secondary)',
                   borderRadius: '12px',
+                  padding: '20px',
                 }}
               >
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-                  基金 ID
-                </p>
-                <p
-                  style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+                <h4
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    margin: '0 0 16px 0',
+                  }}
                 >
-                  #{fund.id}
-                </p>
+                  净值走势
+                </h4>
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                      <XAxis
+                        dataKey="date"
+                        stroke="var(--text-muted)"
+                        fontSize={12}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                      />
+                      <YAxis stroke="var(--text-muted)" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'var(--bg-primary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                        }}
+                        formatter={(value: number) => [value.toFixed(4), 'NAV']}
+                        labelFormatter={(label) => new Date(label).toLocaleDateString('zh-CN')}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="nav"
+                        stroke="#6366f1"
+                        strokeWidth={2}
+                        dot={{ fill: '#6366f1', strokeWidth: 0, r: 4 }}
+                        activeDot={{ r: 6, stroke: '#6366f1', strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: '250px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: '14px',
+                    }}
+                  >
+                    暂无历史数据
+                  </div>
+                )}
               </div>
 
-              <div
-                style={{
-                  padding: '20px',
-                  background: 'var(--bg-secondary)',
-                  borderRadius: '12px',
-                }}
-              >
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-                  创建时间
-                </p>
-                <p
-                  style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+              {/* 右侧：基本信息 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div
+                  style={{
+                    padding: '20px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                  }}
                 >
-                  {new Date(fund.created_at).toLocaleString('zh-CN')}
-                </p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                    基金 ID
+                  </p>
+                  <p
+                    style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+                  >
+                    #{fund.id}
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    padding: '20px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                  }}
+                >
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                    创建时间
+                  </p>
+                  <p
+                    style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+                  >
+                    {new Date(fund.created_at).toLocaleString('zh-CN')}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
