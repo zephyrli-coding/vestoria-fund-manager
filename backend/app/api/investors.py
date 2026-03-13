@@ -1,5 +1,5 @@
 """Investor management API routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db import get_db
@@ -154,7 +154,7 @@ def transfer(
 
 @router.get("/operations", response_model=ResponseModel[OperationListResponse])
 def get_operations(
-    fund_id: int,
+    fund_id: int = Path(..., description="Fund ID"),
     operation_type: Optional[str] = Query(None),
     investor_id: Optional[int] = Query(None),
     start_date: Optional[str] = Query(None),
