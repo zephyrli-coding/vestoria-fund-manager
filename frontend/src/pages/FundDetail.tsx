@@ -96,9 +96,11 @@ export default function FundDetail() {
     if (!id) return;
     try {
       const opsData = await store.fetchOperations(parseInt(id));
+      console.log('Loaded operations:', opsData);
       setOperations(opsData || []);
     } catch (error) {
       console.error('Failed to load operations:', error);
+      setOperations([]);
     }
   };
 
