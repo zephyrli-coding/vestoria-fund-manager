@@ -13,7 +13,7 @@ interface FundActions {
   fetchFunds: () => Promise<void>;
   fetchFundById: (id: number) => Promise<Fund | null>;
   fetchInvestors: (fundId: number) => Promise<Investor[]>;
-  fetchOperations: (fundId: number) => Promise<Operation[]>;
+  fetchOperations: (fundId: number, page?: number, pageSize?: number) => Promise<Operation[]>;
   addInvestor: (fundId: number, name: string) => Promise<void>;
   invest: (fundId: number, investorId: number, amount: number, date: string) => Promise<void>;
   redeem: (fundId: number, investorId: number, amount: number, amountType: 'share' | 'balance', date: string) => Promise<void>;
@@ -117,10 +117,12 @@ export const useFundStore = create<FundStore>((set, get) => ({
     }
   },
 
-  fetchOperations: async (fundId: number) => {
+  fetchOperations: async (fundId: number, page: number = 1, pageSize: number = 50) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<PaginatedResponse<Operation>>(`/funds/${fundId}/investors/operations`);
+      const response = await request<PaginatedResponse<Operation>>(
+        `/funds/${fundId}/investors/operations?page=${page}&page_size=${pageSize}`
+      );
 
       if (response.code === 0) {
         return response.data.items;
