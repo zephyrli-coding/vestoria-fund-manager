@@ -72,6 +72,7 @@ export default function FundDetail() {
           setFund(fundData);
         }
         await loadInvestors();
+        await loadOperations(); // 预加载操作历史
       } catch (error) {
         console.error('Failed to load fund:', error);
       } finally {
@@ -847,30 +848,51 @@ export default function FundDetail() {
                           ? '转账'
                           : op.operation_type === 'update_nav'
                           ? '净值更新'
+                          : op.operation_type === 'add_investor'
+                          ? '添加投资者'
                           : op.operation_type}
                       </p>
                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
                         {new Date(op.operation_date).toLocaleString('zh-CN')}
                       </p>
+                      {op.share && op.share > 0 && (
+                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                          份额: {Math.floor(op.share).toLocaleString()} 份
+                        </p>
+                      )}
                     </div>
 
-                    {op.amount && (
-                      <p
-                        style={{
-                          fontSize: '16px',
-                          fontWeight: 700,
-                          color:
-                            op.operation_type === 'invest'
-                              ? '#22c55e'
-                              : op.operation_type === 'redeem'
-                              ? '#ef4444'
-                              : 'var(--text-primary)',
-                        }}
-                      >
-                        {op.operation_type === 'invest' ? '+' : '-'}
-                        ¥{op.amount.toLocaleString()}
-                      </p>
-                    )}
+                    <div style={{ textAlign: 'right' }}>
+                      {op.amount ? (
+                        <p
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 700,
+                            color:
+                              op.operation_type === 'invest'
+                                ? '#22c55e'
+                                : op.operation_type === 'redeem'
+                                ? '#ef4444'
+                                : 'var(--text-primary)',
+                            margin: '0 0 2px 0',
+                          }}
+                        >
+                          {op.operation_type === 'invest' ? '+' : '-'}
+                          ¥{Math.floor(op.amount).toLocaleString()}
+                        </p>
+                      ) : op.nav_before && op.nav_after ? (
+                        <p
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            margin: '0 0 2px 0',
+                          }}
+                        >
+                          {op.nav_before.toFixed(4)} → {op.nav_after.toFixed(4)}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
