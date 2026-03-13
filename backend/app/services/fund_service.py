@@ -16,14 +16,14 @@ class FundService:
         self.fund_repo = FundRepository(db)
         self.operation_repo = OperationRepository(db)
 
-    def create_fund(self, name: str, start_date: str) -> Fund:
+    def create_fund(self, name: str, start_date: str, currency: str = 'CNY') -> Fund:
         """Create a new fund."""
         # Check if fund name exists
         existing = self.fund_repo.get_by_name(name)
         if existing:
             raise ValueError(f"Fund with name '{name}' already exists")
 
-        return self.fund_repo.create(name, start_date)
+        return self.fund_repo.create(name, start_date, currency)
 
     def get_fund(self, fund_id: int) -> Optional[Fund]:
         """Get fund by ID."""
@@ -40,18 +40,19 @@ class FundService:
             "page_size": limit
         }
 
-    def update_fund(self, fund_id: int, name: str) -> Fund:
-        """Update fund name."""
+    def update_fund(self, fund_id: int, name: str, currency: str = None) -> Fund:
+        """Update fund name and/or currency."""
         fund = self.get_fund(fund_id)
         if not fund:
             raise ValueError("Fund not found")
 
         # Check if name already exists
-        existing = self.fund_repo.get_by_name(name)
-        if existing and existing.id != fund_id:
-            raise ValueError(f"Fund with name '{name}' already exists")
+        if name != fund.name:
+            existing = self.fund_repo.get_by_name(name)
+            if existing and existing.id != fund_id:
+                raise ValueError(f"Fund with name '{name}' already exists")
 
-        return self.fund_repo.update(fund, name=name)
+        return self.fund_repo.update(fund, name=name, currency=currency)
 
     def delete_fund(self, fund_id: int) -> None:
         """Delete a fund."""

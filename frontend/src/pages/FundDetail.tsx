@@ -29,6 +29,12 @@ import {
 import { useFundStore } from '@/stores/fund';
 import type { Fund, Operation, Investor } from '@/types/api';
 
+// 货币格式化工具
+const formatMoney = (amount: number, currency: 'CNY' | 'USD' = 'CNY') => {
+  const symbol = currency === 'USD' ? '$' : '¥';
+  return `${symbol}${Math.floor(amount).toLocaleString()}`;
+};
+
 export default function FundDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -52,12 +58,14 @@ export default function FundDetail() {
   const [showInvestModal, setShowInvestModal] = useState(false);
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
   const [investAmount, setInvestAmount] = useState('');
+  const [investDate, setInvestDate] = useState(new Date().toISOString().split('T')[0]);
   const [investing, setInvesting] = useState(false);
 
   // Redeem modal
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [redeemAmount, setRedeemAmount] = useState('');
   const [redeemType, setRedeemType] = useState<'share' | 'balance'>('share');
+  const [redeemDate, setRedeemDate] = useState(new Date().toISOString().split('T')[0]);
   const [redeeming, setRedeeming] = useState(false);
 
   // Transfer modal
@@ -65,11 +73,13 @@ export default function FundDetail() {
   const [targetInvestorId, setTargetInvestorId] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
   const [transferType, setTransferType] = useState<'share' | 'balance'>('share');
+  const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0]);
   const [transferring, setTransferring] = useState(false);
 
   // NAV update modal
   const [showNavModal, setShowNavModal] = useState(false);
   const [navCapital, setNavCapital] = useState('');
+  const [navDate, setNavDate] = useState(new Date().toISOString().split('T')[0]);
   const [updatingNav, setUpdatingNav] = useState(false);
 
   useEffect(() => {
@@ -156,9 +166,10 @@ export default function FundDetail() {
 
     setInvesting(true);
     try {
-      await store.invest(parseInt(id), selectedInvestor.id, parseFloat(investAmount), new Date().toISOString().split('T')[0]);
+      await store.invest(parseInt(id), selectedInvestor.id, parseFloat(investAmount), investDate);
       setShowInvestModal(false);
       setInvestAmount('');
+      setInvestDate(new Date().toISOString().split('T')[0]);
       setSelectedInvestor(null);
       await loadInvestors();
       await loadOperations();
@@ -178,9 +189,10 @@ export default function FundDetail() {
 
     setRedeeming(true);
     try {
-      await store.redeem(parseInt(id), selectedInvestor.id, parseFloat(redeemAmount), redeemType, new Date().toISOString().split('T')[0]);
+      await store.redeem(parseInt(id), selectedInvestor.id, parseFloat(redeemAmount), redeemType, redeemDate);
       setShowRedeemModal(false);
       setRedeemAmount('');
+      setRedeemDate(new Date().toISOString().split('T')[0]);
       setSelectedInvestor(null);
       await loadInvestors();
       await loadOperations();
@@ -199,9 +211,10 @@ export default function FundDetail() {
 
     setTransferring(true);
     try {
-      await store.transfer(parseInt(id), selectedInvestor.id, parseInt(targetInvestorId), parseFloat(transferAmount), transferType, new Date().toISOString().split('T')[0]);
+      await store.transfer(parseInt(id), selectedInvestor.id, parseInt(targetInvestorId), parseFloat(transferAmount), transferType, transferDate);
       setShowTransferModal(false);
       setTransferAmount('');
+      setTransferDate(new Date().toISOString().split('T')[0]);
       setTargetInvestorId('');
       setSelectedInvestor(null);
       await loadInvestors();
@@ -219,9 +232,10 @@ export default function FundDetail() {
 
     setUpdatingNav(true);
     try {
-      await store.updateNav(parseInt(id), parseFloat(navCapital), new Date().toISOString().split('T')[0]);
+      await store.updateNav(parseInt(id), parseFloat(navCapital), navDate);
       setShowNavModal(false);
       setNavCapital('');
+      setNavDate(new Date().toISOString().split('T')[0]);
       const fundData = await fetchFundById(parseInt(id));
       if (fundData) setFund(fundData);
       await loadInvestors();
@@ -384,7 +398,7 @@ export default function FundDetail() {
           },
           {
             label: '总资产',
-            value: `¥${Math.floor(fund.balance).toLocaleString()}`,
+            value: formatMoney(fund.balance, fund.currency),
             icon: Wallet,
             color: '#22c55e',
           },
@@ -787,7 +801,7 @@ export default function FundDetail() {
                               margin: '0 0 4px 0',
                             }}
                           >
-                            ¥{Math.floor(investor.balance).toLocaleString()}
+                            {formatMoney(investor.balance, fund?.currency)}
                           </p>
                           <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
                             资产价值
@@ -1214,6 +1228,48 @@ export default function FundDetail() {
                 )}
               </div>
 
+              {/* 申购日期 */}
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  申购日期 *
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <Calendar size={20} color="var(--text-muted)" />
+                  <input
+                    type="date"
+                    value={investDate}
+                    onChange={(e) => setInvestDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontSize: '15px',
+                      color: 'var(--text-primary)',
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   type="button"
@@ -1401,6 +1457,48 @@ export default function FundDetail() {
                       : `预计赎回份额: ${(parseFloat(redeemAmount) / fund.net_asset_value).toFixed(4)} 份`}
                   </p>
                 )}
+              </div>
+
+              {/* 赎回日期 */}
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  赎回日期 *
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <Calendar size={20} color="var(--text-muted)" />
+                  <input
+                    type="date"
+                    value={redeemDate}
+                    onChange={(e) => setRedeemDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontSize: '15px',
+                      color: 'var(--text-primary)',
+                    }}
+                    required
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -1629,6 +1727,48 @@ export default function FundDetail() {
                 )}
               </div>
 
+              {/* 转账日期 */}
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  转账日期 *
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <Calendar size={20} color="var(--text-muted)" />
+                  <input
+                    type="date"
+                    value={transferDate}
+                    onChange={(e) => setTransferDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontSize: '15px',
+                      color: 'var(--text-primary)',
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   type="button"
@@ -1711,7 +1851,7 @@ export default function FundDetail() {
               更新净值
             </h3>
             <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '0 0 20px 0' }}>
-              当前NAV: {fund?.net_asset_value.toFixed(4)} | 当前总资产: ¥{fund?.balance.toLocaleString()}
+              当前NAV: {fund?.net_asset_value.toFixed(4)} | 当前总资产: {fund ? formatMoney(fund.balance, fund.currency) : ''}
             </p>
 
             <form onSubmit={handleUpdateNav}>
@@ -1763,6 +1903,48 @@ export default function FundDetail() {
                     新NAV: {(parseFloat(navCapital) / fund.total_share).toFixed(4)}
                   </p>
                 )}
+              </div>
+
+              {/* 更新日期 */}
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  更新日期 *
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <Calendar size={20} color="var(--text-muted)" />
+                  <input
+                    type="date"
+                    value={navDate}
+                    onChange={(e) => setNavDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontSize: '15px',
+                      color: 'var(--text-primary)',
+                    }}
+                    required
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
