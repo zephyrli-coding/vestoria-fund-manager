@@ -3,6 +3,7 @@ from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
 from app.models.fund import Fund, FundHistory
 from app.models.operation import Operation
+from app.models.investor_return_snapshot import InvestorReturnSnapshot
 from app.repositories.fund_repo import FundRepository
 from app.repositories.operation_repo import OperationRepository
 from app.schemas.fund import UpdateNavRequest
@@ -100,6 +101,22 @@ class FundService:
             nav=new_nav,
             balance=new_balance
         )
+
+        # Create investor return snapshots
+        for investor in fund.investors:
+            total_return = round(investor.share * new_nav + investor.total_redeemed - investor.total_invested, 6)
+            snapshot = InvestorReturnSnapshot(
+                investor_id=investor.id,
+                fund_id=fund_id,
+                date=date,
+                nav=new_nav,
+                share=investor.share,
+                total_invested=investor.total_invested,
+                total_redeemed=investor.total_redeemed,
+                total_return=total_return
+            )
+            self.db.add(snapshot)
+        self.db.commit()
 
         # Record operation
         self.operation_repo.create(

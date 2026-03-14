@@ -23,6 +23,8 @@ export interface Investor {
   name: string;
   share: number;
   balance: number;
+  total_invested: number;
+  total_redeemed: number;
   created_at: string;
 }
 

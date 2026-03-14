@@ -94,7 +94,9 @@ class InvestorService:
 
         # Update investor
         new_share = round(investor.share + share, 6)
+        new_total_invested = round(investor.total_invested + amount, 6)
         self.investor_repo.update_share(investor, new_share)
+        investor.total_invested = new_total_invested
 
         # Update fund total share and balance
         new_fund_total_share = round(fund.total_share + share, 6)
@@ -169,7 +171,9 @@ class InvestorService:
 
         # Update investor
         new_investor_share = round(investor.share - redeem_share, 6)
+        new_total_redeemed = round(investor.total_redeemed + redeem_balance, 6)
         self.investor_repo.update_share(investor, new_investor_share)
+        investor.total_redeemed = new_total_redeemed
 
         # Update fund total share and balance
         new_fund_total_share = round(fund.total_share - redeem_share, 6)
@@ -256,8 +260,14 @@ class InvestorService:
         from_new_share = round(from_investor.share - transfer_share, 6)
         to_new_share = round(to_investor.share + transfer_share, 6)
 
+        # Update cumulative amounts: transfer out = redeem for from, transfer in = invest for to
+        from_new_total_redeemed = round(from_investor.total_redeemed + transfer_balance, 6)
+        to_new_total_invested = round(to_investor.total_invested + transfer_balance, 6)
+
         self.investor_repo.update_share(from_investor, from_new_share)
         self.investor_repo.update_share(to_investor, to_new_share)
+        from_investor.total_redeemed = from_new_total_redeemed
+        to_investor.total_invested = to_new_total_invested
 
         # Update investor balances
         from_investor.balance = round(from_new_share * nav, 6)

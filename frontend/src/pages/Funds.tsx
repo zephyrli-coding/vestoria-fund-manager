@@ -469,7 +469,8 @@ export default function Funds() {
                           </button>
 
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setFundToDelete(fund);
                               setDeleteModalOpen(true);
                             }}
