@@ -18,6 +18,7 @@ export default function CreateFund() {
   const [startDate, setStartDate] = useState(
     new Date().toISOString().split('T')[0]
   );
+  const [currency, setCurrency] = useState<'CNY' | 'USD'>('CNY');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,7 +33,7 @@ export default function CreateFund() {
     setError('');
 
     try {
-      await createFund({ name: name.trim(), start_date: startDate });
+      await createFund({ name: name.trim(), start_date: startDate, currency });
       navigate('/funds');
     } catch (err: any) {
       setError(err.message || '创建失败');
@@ -198,6 +199,67 @@ export default function CreateFund() {
                 }}
                 required
               />
+            </div>
+          </div>
+
+          {/* 币种选择 */}
+          <div style={{ marginBottom: '32px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
+              }}
+            >
+              结算币种 *
+            </label>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setCurrency('CNY')}
+                style={{
+                  flex: 1,
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  border: currency === 'CNY' ? '2px solid #6366f1' : '1px solid var(--border-color)',
+                  background: currency === 'CNY' ? 'rgba(99, 102, 241, 0.1)' : 'var(--bg-secondary)',
+                  color: currency === 'CNY' ? '#6366f1' : 'var(--text-secondary)',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span style={{ fontSize: '18px' }}>¥</span>
+                人民币
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrency('USD')}
+                style={{
+                  flex: 1,
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  border: currency === 'USD' ? '2px solid #6366f1' : '1px solid var(--border-color)',
+                  background: currency === 'USD' ? 'rgba(99, 102, 241, 0.1)' : 'var(--bg-secondary)',
+                  color: currency === 'USD' ? '#6366f1' : 'var(--text-secondary)',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span style={{ fontSize: '18px' }}>$</span>
+                美元
+              </button>
             </div>
           </div>
 

@@ -9,6 +9,7 @@ export interface Fund {
   id: number;
   name: string;
   start_date: string;
+  currency: 'CNY' | 'USD';
   total_share: number;
   net_asset_value: number;
   balance: number;

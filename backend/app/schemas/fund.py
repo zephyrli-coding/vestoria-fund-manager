@@ -14,13 +14,14 @@ class FundBase(BaseModel):
 class FundCreate(FundBase):
     """Schema for creating a fund."""
 
-    pass
+    currency: str = Field(default='CNY', description="Currency (CNY or USD)")
 
 
 class FundUpdate(BaseModel):
     """Schema for updating a fund."""
 
     name: str = Field(..., min_length=1, max_length=100, description="Fund name")
+    currency: str = Field(default=None, description="Currency (CNY or USD)")
 
 
 class FundResponse(BaseModel):
@@ -29,6 +30,7 @@ class FundResponse(BaseModel):
     id: int = Field(..., description="Fund ID")
     name: str = Field(..., description="Fund name")
     start_date: str = Field(..., description="Start date")
+    currency: str = Field(..., description="Currency (CNY or USD)")
     total_share: float = Field(..., description="Total shares")
     net_asset_value: float = Field(..., description="Net asset value (NAV)")
     balance: float = Field(..., description="Total balance")
@@ -84,7 +86,7 @@ class UpdateNavRequest(BaseModel):
     """Request for updating fund NAV."""
 
     capital: float = Field(..., gt=0, description="Total capital")
-    date: str = Field(..., description="Update date (YYYY-MM-DD)")
+    date: str = Field(default=None, description="Update date (YYYY-MM-DD)")
 
 
 class UpdateNavResponse(BaseModel):

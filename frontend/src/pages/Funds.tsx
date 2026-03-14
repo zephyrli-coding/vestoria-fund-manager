@@ -394,7 +394,7 @@ export default function Funds() {
                             margin: 0,
                           }}
                         >
-                          ¥{fund.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                          {fund.currency === 'USD' ? '$' : '¥'}{fund.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
                         </p>
                       </td>
 

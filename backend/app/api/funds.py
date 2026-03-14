@@ -41,7 +41,7 @@ def create_fund(
 ):
     """Create a new fund."""
     try:
-        fund = service.create_fund(request.name, request.start_date)
+        fund = service.create_fund(request.name, request.start_date, request.currency)
         return ResponseModel(data=fund, message="Fund created successfully")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -68,7 +68,7 @@ def update_fund(
 ):
     """Update fund."""
     try:
-        fund = service.update_fund(fund_id, request.name)
+        fund = service.update_fund(fund_id, request.name, request.currency)
         return ResponseModel(data=fund, message="Fund updated successfully")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -96,8 +96,11 @@ def update_nav(
     current_admin: Admin = Depends(get_current_admin)
 ):
     """Update fund NAV."""
+    from datetime import datetime
+    date = request.date or datetime.now().strftime('%Y-%m-%d')
+    
     try:
-        result = service.update_nav(fund_id, request.capital, request.date)
+        result = service.update_nav(fund_id, request.capital, date)
         return ResponseModel(data=result, message="NAV updated successfully")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

@@ -12,9 +12,9 @@ class FundRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, name: str, start_date: str) -> Fund:
+    def create(self, name: str, start_date: str, currency: str = 'CNY') -> Fund:
         """Create a new fund."""
-        fund = Fund(name=name, start_date=start_date)
+        fund = Fund(name=name, start_date=start_date, currency=currency)
         self.db.add(fund)
         self.db.commit()
         self.db.refresh(fund)

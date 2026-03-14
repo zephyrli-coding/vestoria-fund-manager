@@ -1,5 +1,5 @@
 """Investor management API routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db import get_db
@@ -56,6 +56,60 @@ def add_investor(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
+# Operation history endpoints - MUST be before /{investor_id} routes
+
+@router.get("/operations", response_model=ResponseModel[OperationListResponse])
+def get_operations(
+    fund_id: int = Path(..., description="Fund ID"),
+    operation_type: Optional[str] = Query(None),
+    investor_id: Optional[int] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    service: InvestorService = Depends(get_investor_service)
+):
+    """Get fund operations."""
+    skip = (page - 1) * page_size
+    result = service.get_operations(
+        fund_id=fund_id,
+        investor_id=investor_id,
+        operation_type=operation_type,
+        start_date=start_date,
+        end_date=end_date,
+        skip=skip,
+        limit=page_size
+    )
+    return ResponseModel(data=result)
+
+
+@router.post("/transfer", response_model=ResponseModel[TransferResponse])
+def transfer(
+    fund_id: int,
+    request: TransferRequest,
+    service: InvestorService = Depends(get_investor_service),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Transfer shares between investors."""
+    from datetime import datetime
+    date = request.date or datetime.now().strftime('%Y-%m-%d')
+
+    try:
+        result = service.transfer(
+            fund_id,
+            request.from_investor_id,
+            request.to_investor_id,
+            request.amount,
+            request.amount_type,
+            date
+        )
+        return ResponseModel(data=result, message="Transfer successful")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+# Investor-specific endpoints - MUST be after /operations and /transfer
+
 @router.get("/{investor_id}", response_model=ResponseModel[InvestorResponse])
 def get_investor(
     fund_id: int,
@@ -84,8 +138,6 @@ def update_investor(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-
-# Share operation endpoints
 
 @router.post("/{investor_id}/invest", response_model=ResponseModel[InvestResponse])
 def invest(
@@ -125,58 +177,6 @@ def redeem(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/transfer", response_model=ResponseModel[TransferResponse])
-def transfer(
-    fund_id: int,
-    request: TransferRequest,
-    service: InvestorService = Depends(get_investor_service),
-    current_admin: Admin = Depends(get_current_admin)
-):
-    """Transfer shares between investors."""
-    from datetime import datetime
-    date = request.date or datetime.now().strftime('%Y-%m-%d')
-
-    try:
-        result = service.transfer(
-            fund_id,
-            request.from_investor_id,
-            request.to_investor_id,
-            request.amount,
-            request.amount_type,
-            date
-        )
-        return ResponseModel(data=result, message="Transfer successful")
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
-# Operation history endpoints
-
-@router.get("/operations", response_model=ResponseModel[OperationListResponse])
-def get_operations(
-    fund_id: int,
-    operation_type: Optional[str] = Query(None),
-    investor_id: Optional[int] = Query(None),
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
-    service: InvestorService = Depends(get_investor_service)
-):
-    """Get fund operations."""
-    skip = (page - 1) * page_size
-    result = service.get_operations(
-        fund_id=fund_id,
-        investor_id=investor_id,
-        operation_type=operation_type,
-        start_date=start_date,
-        end_date=end_date,
-        skip=skip,
-        limit=page_size
-    )
-    return ResponseModel(data=result)
-
-
 @router.get("/{investor_id}/operations", response_model=ResponseModel[OperationListResponse])
 def get_investor_operations(
     fund_id: int,
@@ -189,30 +189,6 @@ def get_investor_operations(
     service: InvestorService = Depends(get_investor_service)
 ):
     """Get operations for a specific investor."""
-    skip = (page - 1) * page_size
-    result = service.get_operations(
-        fund_id=fund_id,
-        investor_id=investor_id,
-        operation_type=operation_type,
-        start_date=start_date,
-        end_date=end_date,
-        skip=skip,
-        limit=page_size
-    )
-    return ResponseModel(data=result)
-
-
-def get_investor_operations(
-    fund_id: int,
-    investor_id: int,
-    operation_type: Optional[str] = Query(None),
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
-    service: InvestorService = Depends(get_investor_service)
-):
-    """Get investor operations."""
     skip = (page - 1) * page_size
     result = service.get_operations(
         fund_id=fund_id,
