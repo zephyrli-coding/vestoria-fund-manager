@@ -200,3 +200,57 @@ def get_investor_operations(
         limit=page_size
     )
     return ResponseModel(data=result)
+
+
+@router.get("/{investor_id}/return-history", response_model=ResponseModel[dict])
+def get_investor_return_history(
+    fund_id: int,
+    investor_id: int,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    service: InvestorService = Depends(get_investor_service)
+):
+    """Get investor's return history with snapshots."""
+    from app.models.investor_return_snapshot import InvestorReturnSnapshot
+
+    investor = service.get_investor(fund_id, investor_id)
+    if not investor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Investor not found")
+
+    # Query snapshots
+    query = service.db.query(InvestorReturnSnapshot).filter(
+        InvestorReturnSnapshot.investor_id == investor_id
+    )
+
+    if start_date:
+        query = query.filter(InvestorReturnSnapshot.date >= start_date)
+    if end_date:
+        query = query.filter(InvestorReturnSnapshot.date <= end_date)
+
+    snapshots = query.order_by(InvestorReturnSnapshot.date).all()
+
+    # Convert snapshots to dict for serialization
+    snapshots_data = [
+        {
+            "id": s.id,
+            "investor_id": s.investor_id,
+            "fund_id": s.fund_id,
+            "date": s.date,
+            "nav": s.nav,
+            "share": s.share,
+            "total_invested": s.total_invested,
+            "total_redeemed": s.total_redeemed,
+            "total_return": s.total_return,
+            "created_at": s.created_at.isoformat() if s.created_at else None
+        }
+        for s in snapshots
+    ]
+
+    return ResponseModel(data={
+        "investor_id": investor_id,
+        "investor_name": investor.name,
+        "share": investor.share,
+        "total_invested": investor.total_invested,
+        "total_redeemed": investor.total_redeemed,
+        "snapshots": snapshots_data
+    })

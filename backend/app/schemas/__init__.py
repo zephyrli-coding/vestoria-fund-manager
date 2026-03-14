@@ -4,7 +4,8 @@ from app.schemas.fund import (
     FundHistoryResponse, FundChartResponse, UpdateNavRequest
 )
 from app.schemas.investor import (
-    InvestorCreate, InvestorUpdate, InvestorResponse, InvestorListResponse
+    InvestorCreate, InvestorUpdate, InvestorResponse, InvestorListResponse,
+    InvestorReturnSnapshotResponse, InvestorReturnHistoryResponse
 )
 from app.schemas.operation import (
     OperationResponse, OperationListResponse,
@@ -23,6 +24,7 @@ __all__ = [
     "FundHistoryResponse", "FundChartResponse", "UpdateNavRequest",
     # Investor
     "InvestorCreate", "InvestorUpdate", "InvestorResponse", "InvestorListResponse",
+    "InvestorReturnSnapshotResponse", "InvestorReturnHistoryResponse",
     # Operation
     "OperationResponse", "OperationListResponse",
     "InvestRequest", "RedeemRequest", "TransferRequest",

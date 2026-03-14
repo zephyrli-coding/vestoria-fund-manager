@@ -24,6 +24,7 @@ class Fund(Base):
     investors = relationship("Investor", back_populates="fund", cascade="all, delete-orphan")
     operations = relationship("Operation", back_populates="fund", cascade="all, delete-orphan")
     history = relationship("FundHistory", back_populates="fund", cascade="all, delete-orphan")
+    investor_snapshots = relationship("InvestorReturnSnapshot", back_populates="fund", cascade="all, delete-orphan")
 
 
 class FundHistory(Base):

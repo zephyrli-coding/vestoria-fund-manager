@@ -350,7 +350,7 @@ export default function Investors() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
+                  gridTemplateColumns: '1fr 1fr 1fr',
                   gap: '16px',
                   padding: '16px',
                   background: 'var(--bg-secondary)',
@@ -408,6 +408,52 @@ export default function Investors() {
                     ¥{investor.balance?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) || '0.00'}
                   </p>
                 </div>
+
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    <TrendingUp size={14} color="var(--success-color)" />
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      累计收益
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: '18px',
+                      fontWeight: 700,
+                      color: (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested) >= 0 ? 'var(--success-color)' : 'var(--danger-color)',
+                      margin: 0,
+                    }}
+                  >
+                    {(() => {
+                      const totalReturn = (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested);
+                      return `${totalReturn >= 0 ? '+' : ''}¥${totalReturn.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`;
+                    })()}
+                  </p>
+                </div>
+              </div>
+
+              {/* 投入/赎回详情 */}
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '10px 16px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>投入: ¥{investor.total_invested?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) || '0.00'}</span>
+                <span>赎回: ¥{investor.total_redeemed?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) || '0.00'}</span>
               </div>
             </div>
           ))

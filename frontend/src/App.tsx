@@ -6,6 +6,7 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Funds from '@/pages/Funds';
 import FundDetail from '@/pages/FundDetail';
+import InvestorDetail from '@/pages/InvestorDetail';
 import Investors from '@/pages/Investors';
 import EditFund from '@/pages/EditFund';
 import CreateFund from '@/pages/CreateFund';
@@ -60,6 +61,7 @@ function App() {
             <Route path="funds" element={<Funds />} />
             <Route path="funds/create" element={<CreateFund />} />
             <Route path="funds/:id/investors" element={<Investors />} />
+            <Route path="funds/:id/investors/:investorId" element={<InvestorDetail />} />
             <Route path="funds/:id/edit" element={<EditFund />} />
             <Route path="funds/:id" element={<FundDetail />} />
             <Route path="investors" element={<Investors />} />

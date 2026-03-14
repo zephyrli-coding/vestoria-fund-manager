@@ -731,6 +731,7 @@ export default function FundDetail() {
                   .map((investor) => (
                     <div
                       key={investor.id}
+                      onClick={() => navigate(`/funds/${fund?.id}/investors/${investor.id}`)}
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -738,6 +739,17 @@ export default function FundDetail() {
                         padding: '16px',
                         background: 'var(--bg-secondary)',
                         borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      className="hover-lift"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--bg-primary)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'var(--bg-secondary)';
+                        e.currentTarget.style.boxShadow = 'none';
                       }}
                     >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -807,12 +819,31 @@ export default function FundDetail() {
                             资产价值
                           </p>
                         </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <p
+                            style={{
+                              fontSize: '20px',
+                              fontWeight: 700,
+                              color: (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested) >= 0 ? '#22c55e' : '#ef4444',
+                              margin: '0 0 4px 0',
+                            }}
+                          >
+                            {(() => {
+                              const totalReturn = (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested);
+                              return `${totalReturn >= 0 ? '+' : ''}${formatMoney(totalReturn, fund?.currency)}`;
+                            })()}
+                          </p>
+                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+                            累计收益
+                          </p>
+                        </div>
                       </div>
 
                       {/* Action Buttons */}
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedInvestor(investor);
                             setShowInvestModal(true);
                           }}
@@ -830,7 +861,8 @@ export default function FundDetail() {
                           申购
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedInvestor(investor);
                             setShowRedeemModal(true);
                           }}
@@ -848,7 +880,8 @@ export default function FundDetail() {
                           赎回
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedInvestor(investor);
                             setShowTransferModal(true);
                           }}
