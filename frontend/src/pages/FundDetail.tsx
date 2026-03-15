@@ -24,7 +24,8 @@ import {
   Trash2,
   X,
   Check,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Download
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
 import type { Fund, Operation, Investor } from '@/types/api';
@@ -140,6 +141,29 @@ export default function FundDetail() {
       }
     } catch (error) {
       console.error('Failed to load chart data:', error);
+    }
+  };
+
+  const handleExportOperations = async () => {
+    if (!id) return;
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/funds/${id}/operations/export`);
+      if (!response.ok) throw new Error('Export failed');
+      
+      const content = await response.text();
+      
+      // Create download
+      const blob = new Blob([content], { type: 'application/jsonl' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fund_${id}_operations.jsonl`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('导出失败: ' + (error as Error).message);
     }
   };
 
@@ -354,6 +378,26 @@ export default function FundDetail() {
             >
               <Activity size={18} />
               更新净值
+            </button>
+
+            <button
+              onClick={handleExportOperations}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-secondary)',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              <Download size={18} />
+              导出记录
             </button>
 
             <button

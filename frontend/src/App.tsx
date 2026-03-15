@@ -10,6 +10,7 @@ import InvestorDetail from '@/pages/InvestorDetail';
 import Investors from '@/pages/Investors';
 import EditFund from '@/pages/EditFund';
 import CreateFund from '@/pages/CreateFund';
+import DataImportExport from '@/pages/DataImportExport';
 
 // Layouts
 import MainLayout from '@/layouts/MainLayout';
@@ -64,6 +65,7 @@ function App() {
             <Route path="funds/:id/investors/:investorId" element={<InvestorDetail />} />
             <Route path="funds/:id/edit" element={<EditFund />} />
             <Route path="funds/:id" element={<FundDetail />} />
+            <Route path="funds/:id/data" element={<DataImportExport />} />
             <Route path="investors" element={<Investors />} />
           </Route>
         ) : (
