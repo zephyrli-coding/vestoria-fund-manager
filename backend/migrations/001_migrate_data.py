@@ -3,14 +3,121 @@ import pickle as pkl
 import sys
 import os
 from datetime import datetime
+from typing import Dict, List, Optional, Literal
 from sqlalchemy.orm import Session
 from app.db import SessionLocal, engine
 from app.models import Fund, Investor, Operation, FundHistory
 
-# Add parent directory to path for importing manage.py
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
-from utils.manage import PrivateFund
+# ==================== Copied from utils/manage.py ====================
+class Investor:
+    def __init__(self, name: str):
+        self.name = name
+        self.share = 0.0
+
+
+class PrivateFund:
+    def __init__(self, name: str, date: str = None):
+        self.name = name
+        self.start_date = date if date else datetime.now().strftime('%Y-%m-%d')
+        self.total_share = 0.0
+        self.net_asset_value = 1.0
+        self.investors: Dict[str, Investor] = {}
+        self.history_operation = []
+
+    def list_investor(self) -> List[str]:
+        return list(self.investors.keys())
+    
+    def get_investor(self, name: str) -> Optional[Investor]:
+        return self.investors.get(name, None)
+
+    def add_investor(self, investor_name: str, date: str=None) -> None:
+        if date is None:
+            date = datetime.now().strftime('%Y-%m-%d')
+        
+        investor = Investor(investor_name)
+        self.investors[investor.name] = investor
+        self.history_operation.append(['Add', {'investor_name': investor_name, 'date': date}, {}])
+
+    def invest(self, investor_name: str, amount: float, date: str = None) -> None:
+        if investor_name not in self.investors:
+            self.add_investor(investor_name, date)
+        investor = self.investors[investor_name]
+
+        if not date:
+            date = datetime.now().strftime('%Y-%m-%d')
+
+        share = round(amount / self.net_asset_value, 6) if self.total_share != 0 else round(amount, 6)
+        investor.share += share
+        self.total_share = round(self.total_share + share, 6)
+
+        self.history_operation.append(['Invest', {'investor_name': investor_name, 'amount': amount, "date": date}, {}])
+
+    def redeem(self, investor_name: str, amount: float, amount_type: Literal['share', 'balance'] = 'share', date: str = None) -> int:
+        investor = self.investors.get(investor_name)
+        if not investor or investor.share <= 0:
+            return 1
+
+        if not date:
+            date = datetime.now().strftime('%Y-%m-%d')
+        
+        if amount_type == 'share':
+            if investor.share < amount:
+                amount = investor.share
+            redeem_share = amount
+        elif amount_type == 'balance':
+            investor_balance = investor.share * self.net_asset_value
+            if investor_balance < amount:
+                amount = investor_balance
+            redeem_share = round(amount / self.net_asset_value, 6)
+        
+        investor.share = round(investor.share - redeem_share, 6)
+        self.total_share = round(self.total_share - redeem_share, 6)
+
+        self.history_operation.append(['Redeem', {
+            'investor_name': investor_name, 
+            'amount': amount, 
+            'amount_type': amount_type,
+            'date': date,
+            'share': redeem_share
+        }, {}])
+        return 0
+
+    def transfer(self, from_investor: str, to_investor: str, amount: float, amount_type: Literal['share', 'balance'] = 'share', date: str = None) -> int:
+        if from_investor not in self.investors or to_investor not in self.investors:
+            return 1
+
+        if not date:
+            date = datetime.now().strftime('%Y-%m-%d')
+
+        if amount_type == 'balance':
+            amount = round(amount / self.net_asset_value, 6)
+
+        from_inv = self.investors[from_investor]
+        to_inv = self.investors[to_investor]
+
+        if from_inv.share < amount:
+            return 1
+
+        from_inv.share = round(from_inv.share - amount, 6)
+        to_inv.share = round(to_inv.share + amount, 6)
+
+        self.history_operation.append(['Transfer', {
+            'from_investor': from_investor,
+            'to_investor': to_investor,
+            'amount': amount,
+            'amount_type': amount_type,
+            'date': date,
+            'share': amount
+        }, {}])
+        return 0
+
+    def get_fund_info(self):
+        return {
+            'total_share': self.total_share,
+            'net_asset_value': self.net_asset_value
+        }
+# ==================== End of copied code ====================
 
 
 def migrate_fund(private_fund: PrivateFund, db: Session) -> Fund:
@@ -92,7 +199,7 @@ def migrate_fund(private_fund: PrivateFund, db: Session) -> Fund:
 def main():
     """Main migration function."""
     # Find pickle files in data directory
-    data_dir = os.path.join(os.path.dirname(__file__), "../..", "data")
+    data_dir = os.path.join(os.path.dirname(__file__), "../../..", "data")
     pickle_files = [f for f in os.listdir(data_dir) if f.endswith(".pkl")]
 
     if not pickle_files:
