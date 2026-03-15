@@ -8,7 +8,7 @@ from app.db import SessionLocal, engine
 from app.models import Fund, Investor, Operation, FundHistory
 
 # Add parent directory to path for importing manage.py
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from utils.manage import PrivateFund
 
@@ -92,7 +92,7 @@ def migrate_fund(private_fund: PrivateFund, db: Session) -> Fund:
 def main():
     """Main migration function."""
     # Find pickle files in data directory
-    data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
+    data_dir = os.path.join(os.path.dirname(__file__), "../..", "data")
     pickle_files = [f for f in os.listdir(data_dir) if f.endswith(".pkl")]
 
     if not pickle_files:
