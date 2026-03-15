@@ -18,6 +18,8 @@ env/
 *.db
 *.db-journal
 data/*.db
+data/*.db.backup.*
+data/*.db.original
 
 # Environment variables
 .env
