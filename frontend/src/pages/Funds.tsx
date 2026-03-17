@@ -446,7 +446,7 @@ export default function Funds() {
                                 margin: '0 0 2px 0',
                               }}
                             >
-                              {fund.name}
+                              {Array.from(fund.name).slice(1).join('') || fund.name}
                             </p>
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
                               ID: {fund.id}
