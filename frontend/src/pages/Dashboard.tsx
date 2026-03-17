@@ -145,7 +145,7 @@ function FundCard({ fund }: FundCardProps) {
                 marginBottom: '4px',
               }}
             >
-              {fund.name.slice(1) || fund.name}
+              {Array.from(fund.name).slice(1).join('') || fund.name}
             </h4>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
               成立时间: {fund.start_date}
