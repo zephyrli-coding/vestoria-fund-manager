@@ -1,7 +1,11 @@
 """Fund management API routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import io
+import zipfile
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from app.db import get_db
 from app.schemas.common import ResponseModel, ErrorResponse, PaginatedResponse
 from app.schemas.fund import (
@@ -10,6 +14,7 @@ from app.schemas.fund import (
     UpdateNavRequest, UpdateNavResponse
 )
 from app.services.fund_service import FundService
+from app.services.operation_history_service import OperationHistoryService
 from app.api.auth import get_current_admin
 from app.models.admin import Admin
 
@@ -19,6 +24,71 @@ router = APIRouter()
 def get_fund_service(db: Session = Depends(get_db)) -> FundService:
     """Get fund service instance."""
     return FundService(db)
+
+
+@router.post("/export", response_class=StreamingResponse)
+def export_funds(
+    body: dict = Body(default={}),
+    tag: Optional[str] = Query(None, description="Filter by tag before export"),
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Export funds to ZIP containing JSONL files.
+
+    If fund_ids is provided, export only those funds.
+    If tag is provided, export funds with that tag.
+    If neither provided, export all funds.
+    """
+    from app.models import Fund
+
+    # Get fund_ids from request body if provided
+    fund_ids = body.get("fund_ids") if body else None
+
+    # Query funds to export
+    query = db.query(Fund)
+
+    if fund_ids:
+        query = query.filter(Fund.id.in_(fund_ids))
+
+    if tag:
+        query = query.filter(Fund.tags.contains(tag))
+
+    funds = query.all()
+
+    if not funds:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No funds found to export"
+        )
+
+    # Create ZIP in memory
+    zip_buffer = io.BytesIO()
+    history_service = OperationHistoryService(db)
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for fund in funds:
+            # Export each fund as JSONL
+            jsonl_content = history_service.export_to_jsonl(fund.id)
+
+            # Sanitize filename
+            safe_name = "".join(c for c in fund.name if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_name = safe_name.replace(' ', '_')
+            filename = f"{fund.id}_{safe_name}.jsonl"
+
+            zip_file.writestr(filename, jsonl_content)
+
+    zip_buffer.seek(0)
+
+    # Generate timestamp for filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename=funds_export_{timestamp}.zip"
+        }
+    )
 
 
 @router.get("", response_model=ResponseModel[FundListResponse])
@@ -142,3 +212,5 @@ def get_chart_data(
         end_date=end_date
     )
     return ResponseModel(data=result)
+
+

@@ -8,9 +8,8 @@ import {
   Trash2,
   TrendingUp,
   Eye,
-  Filter,
-  Download,
   ArrowUpDown,
+  Download,
   Upload
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
@@ -28,6 +27,7 @@ export default function Funds() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [fundToDelete, setFundToDelete] = useState<Fund | null>(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -92,6 +92,69 @@ export default function Funds() {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  // Handle batch export
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      // Build export URL with current filters
+      let url = `${API_BASE_URL}/funds/export`;
+      if (selectedTag) {
+        url += `?tag=${encodeURIComponent(selectedTag)}`;
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({}) // Empty body = export all (or filtered by tag)
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('请先登录后再导出');
+        }
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      // Get filename from Content-Disposition header
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = 'funds_export.zip';
+      if (disposition) {
+        const match = disposition.match(/filename="(.+)"/);
+        if (match) {
+          filename = match[1];
+        }
+      }
+
+      // Download file
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+    } catch (error: any) {
+      console.error('Export error:', error);
+      alert('导出失败: ' + (error?.message || String(error)));
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -226,8 +289,8 @@ export default function Funds() {
               cursor: 'pointer',
             }}
           >
-            <Filter size={18} />
-            筛选
+            <ArrowUpDown size={18} />
+            排序
           </button>
 
           {/* Tag Filter Dropdown */}
@@ -275,6 +338,8 @@ export default function Funds() {
 
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
+            onClick={handleExport}
+            disabled={exportLoading || funds.length === 0}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -286,11 +351,12 @@ export default function Funds() {
               color: 'var(--text-secondary)',
               fontSize: '14px',
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: exportLoading || funds.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: exportLoading || funds.length === 0 ? 0.6 : 1,
             }}
           >
             <Download size={18} />
-            导出
+            {exportLoading ? '导出中...' : '导出'}
           </button>
 
           {/* Hidden file input for import */}
