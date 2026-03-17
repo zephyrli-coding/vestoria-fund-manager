@@ -596,7 +596,17 @@ export default function FundDetail() {
                         fontSize={12}
                         tickFormatter={(value) => new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
                       />
-                      <YAxis stroke="var(--text-muted)" fontSize={12} />
+                      <YAxis
+                        stroke="var(--text-muted)"
+                        fontSize={12}
+                        domain={(() => {
+                          const values = chartData.map(d => d.nav);
+                          const min = Math.min(...values);
+                          const max = Math.max(...values);
+                          return [min * 0.95, max * 1.05];
+                        })()}
+                        tickFormatter={(value) => value.toFixed(4)}
+                      />
                       <Tooltip
                         contentStyle={{
                           background: 'var(--bg-primary)',
@@ -611,7 +621,7 @@ export default function FundDetail() {
                         dataKey="nav"
                         stroke="#6366f1"
                         strokeWidth={2}
-                        dot={{ fill: '#6366f1', strokeWidth: 0, r: 4 }}
+                        dot={chartData.length > 10 ? false : { fill: '#6366f1', strokeWidth: 0, r: 4 }}
                         activeDot={{ r: 6, stroke: '#6366f1', strokeWidth: 2 }}
                       />
                     </LineChart>
@@ -769,183 +779,159 @@ export default function FundDetail() {
                 <p>暂无投资者</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {investors
-                  .filter(inv => inv.name.toLowerCase().includes(investorSearchQuery.toLowerCase()))
-                  .map((investor) => (
-                    <div
-                      key={investor.id}
-                      onClick={() => navigate(`/funds/${fund?.id}/investors/${investor.id}`)}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '16px',
-                        background: 'var(--bg-secondary)',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      className="hover-lift"
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'var(--bg-primary)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'var(--bg-secondary)';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '10px',
-                          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {investor.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p
-                          style={{
-                            fontSize: '15px',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            margin: 0,
-                          }}
-                        >
-                          {investor.name}
-                        </p>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                          加入时间: {new Date(investor.created_at).toLocaleDateString('zh-CN')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                      {/* Share and Balance - Equal size, side by side */}
-                      <div style={{ display: 'flex', gap: '24px' }}>
-                        <div style={{ textAlign: 'right' }}>
-                          <p
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-secondary)' }}>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        投资者
+                      </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        持有份额
+                      </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        资产价值 ({fund?.currency === 'USD' ? '$' : '¥'})
+                      </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        累计收益 ({fund?.currency === 'USD' ? '$' : '¥'})
+                      </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'center', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        操作
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {investors
+                      .filter(inv => inv.name.toLowerCase().includes(investorSearchQuery.toLowerCase()))
+                      .map((investor, index) => {
+                        const totalReturn = (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested);
+                        const returnPositive = totalReturn >= 0;
+                        return (
+                          <tr
+                            key={investor.id}
+                            onClick={() => navigate(`/funds/${fund?.id}/investors/${investor.id}`)}
                             style={{
-                              fontSize: '20px',
-                              fontWeight: 700,
-                              color: 'var(--text-primary)',
-                              margin: '0 0 4px 0',
+                              borderBottom: index < investors.length - 1 ? '1px solid var(--border-color)' : 'none',
+                              transition: 'background 0.2s',
+                              cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'var(--bg-secondary)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
                             }}
                           >
-                            {Math.floor(investor.share).toLocaleString()} 份
-                          </p>
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                            持有份额
-                          </p>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <p
-                            style={{
-                              fontSize: '20px',
-                              fontWeight: 700,
-                              color: 'var(--text-primary)',
-                              margin: '0 0 4px 0',
-                            }}
-                          >
-                            {formatMoney(investor.balance, fund?.currency)}
-                          </p>
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                            资产价值
-                          </p>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <p
-                            style={{
-                              fontSize: '20px',
-                              fontWeight: 700,
-                              color: (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested) >= 0 ? '#22c55e' : '#ef4444',
-                              margin: '0 0 4px 0',
-                            }}
-                          >
-                            {(() => {
-                              const totalReturn = (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested);
-                              return `${totalReturn >= 0 ? '+' : ''}${formatMoney(totalReturn, fund?.currency)}`;
-                            })()}
-                          </p>
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                            累计收益
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedInvestor(investor);
-                            setShowInvestModal(true);
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: '#22c55e',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          申购
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedInvestor(investor);
-                            setShowRedeemModal(true);
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: '#ef4444',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          赎回
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedInvestor(investor);
-                            setShowTransferModal(true);
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: '#3b82f6',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          转账
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  ))}
+                            <td style={{ padding: '20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div
+                                  style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '12px',
+                                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {investor.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>
+                                    {investor.name}
+                                  </p>
+                                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+                                    加入时间: {new Date(investor.created_at).toLocaleDateString('zh-CN')}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                              <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                                {Math.floor(investor.share).toLocaleString()}
+                              </p>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                              <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                                {Math.floor(investor.balance).toLocaleString()}
+                              </p>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                              <p style={{ fontSize: '15px', fontWeight: 600, color: returnPositive ? '#22c55e' : '#ef4444', margin: 0 }}>
+                                {returnPositive ? '+' : ''}{Math.floor(totalReturn).toLocaleString()}
+                              </p>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedInvestor(investor);
+                                    setShowInvestModal(true);
+                                  }}
+                                  style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: '#22c55e',
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  申购
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedInvestor(investor);
+                                    setShowRedeemModal(true);
+                                  }}
+                                  style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  赎回
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedInvestor(investor);
+                                    setShowTransferModal(true);
+                                  }}
+                                  style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: '#3b82f6',
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  转账
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

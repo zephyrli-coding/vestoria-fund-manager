@@ -173,7 +173,7 @@ function FundCard({ fund }: FundCardProps) {
               margin: 0,
             }}
           >
-            ¥{fund.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+            ¥ {Math.floor(fund.balance).toLocaleString('zh-CN')}
           </p>
         </div>
         <div>
@@ -188,7 +188,7 @@ function FundCard({ fund }: FundCardProps) {
               margin: 0,
             }}
           >
-            {fund.total_share.toFixed(4)}
+            {Math.floor(fund.total_share).toLocaleString('zh-CN')}
           </p>
         </div>
       </div>
@@ -350,7 +350,7 @@ export default function Dashboard() {
       >
         <StatCard
           title="总资产"
-          value={`¥${totalBalance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`}
+          value={`¥ ${Math.floor(totalBalance).toLocaleString('zh-CN')}`}
           change="+12.5%"
           changePositive={true}
           icon={Wallet}
@@ -358,7 +358,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="总份额"
-          value={totalShares.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+          value={Math.floor(totalShares).toLocaleString('zh-CN')}
           change="+8.3%"
           changePositive={true}
           icon={PieChart}

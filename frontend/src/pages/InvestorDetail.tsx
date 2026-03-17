@@ -194,31 +194,31 @@ export default function InvestorDetail() {
         {[
           {
             label: '持有份额',
-            value: `${investor.share.toFixed(4)} 份`,
+            value: Math.floor(investor.share).toLocaleString(),
             icon: PieChart,
             color: '#6366f1',
           },
           {
             label: '资产价值',
-            value: formatMoney(investor.balance, fund.currency),
+            value: `${fund.currency === 'USD' ? '$' : '¥'}${Math.floor(investor.balance).toLocaleString()}`,
             icon: Wallet,
             color: '#3b82f6',
           },
           {
             label: '累计收益',
-            value: `${isProfit ? '+' : '-'}${formatMoney(totalReturn, fund.currency)}`,
+            value: `${isProfit ? '+' : ''}${fund.currency === 'USD' ? '$' : '¥'}${Math.floor(totalReturn).toLocaleString()}`,
             icon: isProfit ? TrendingUp : TrendingDown,
             color: isProfit ? '#22c55e' : '#ef4444',
           },
           {
-            label: '累计投入',
-            value: formatMoney(investor.total_invested, fund.currency),
+                    label: '累计投入',
+            value: `${fund.currency === 'USD' ? '$' : '¥'}${Math.floor(investor.total_invested).toLocaleString()}`,
             icon: Activity,
             color: '#f59e0b',
           },
           {
             label: '累计赎回',
-            value: formatMoney(investor.total_redeemed, fund.currency),
+            value: `${fund.currency === 'USD' ? '$' : '¥'}${Math.floor(investor.total_redeemed).toLocaleString()}`,
             icon: Activity,
             color: '#8b5cf6',
           },
@@ -303,7 +303,13 @@ export default function InvestorDetail() {
               <YAxis
                 stroke="var(--text-muted)"
                 fontSize={12}
-                tickFormatter={(value) => `¥${value}`}
+                tickFormatter={(value) => `¥${Math.round(value).toLocaleString('zh-CN')}`}
+                domain={(() => {
+                  const values = chartData.map(d => d.return);
+                  const min = Math.min(...values);
+                  const max = Math.max(...values);
+                  return [min * 0.95, max * 1.05];
+                })()}
               />
               <Tooltip
                 contentStyle={{
@@ -322,7 +328,7 @@ export default function InvestorDetail() {
                 dataKey="return"
                 stroke={isProfit ? '#22c55e' : '#ef4444'}
                 strokeWidth={2}
-                dot={{ fill: isProfit ? '#22c55e' : '#ef4444', strokeWidth: 0, r: 4 }}
+                dot={chartData.length > 10 ? false : { fill: isProfit ? '#22c55e' : '#ef4444', strokeWidth: 0, r: 4 }}
                 activeDot={{ r: 6, stroke: isProfit ? '#22c55e' : '#ef4444', strokeWidth: 2 }}
               />
             </LineChart>
@@ -429,7 +435,7 @@ export default function InvestorDetail() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>当时份额</span>
-                      <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{latest.share.toFixed(4)} 份</span>
+                      <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{Math.floor(latest.share).toLocaleString()}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>当时累计收益</span>
@@ -440,7 +446,7 @@ export default function InvestorDetail() {
                           color: latest.total_return >= 0 ? '#22c55e' : '#ef4444',
                         }}
                       >
-                        {latest.total_return >= 0 ? '+' : '-'}¥{Math.abs(latest.total_return).toFixed(2)}
+                        {latest.total_return >= 0 ? '+' : '-'}{fund.currency === 'USD' ? '$' : '¥'}{Math.abs(Math.floor(latest.total_return)).toLocaleString()}
                       </span>
                     </div>
                   </>

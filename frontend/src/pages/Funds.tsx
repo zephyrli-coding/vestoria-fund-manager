@@ -110,7 +110,10 @@ export default function Funds() {
           comparison = a.net_asset_value - b.net_asset_value;
           break;
         case 'balance':
-          comparison = a.balance - b.balance;
+          const rateA = a.currency === 'USD' ? 6.9 : 1;
+          const rateB = b.currency === 'USD' ? 6.9 : 1;
+          comparison = (a.balance * rateA) - (b.balance * rateB);
+          break;
           break;
         case 'date':
           comparison = new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
@@ -472,21 +475,28 @@ export default function Funds() {
                       </td>
 
                       <td style={{ padding: '20px' }}>
-                        <p
-                          style={{
-                            fontSize: '15px',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            margin: 0,
-                          }}
-                        >
-                          {fund.currency === 'USD' ? '$' : '¥'}{fund.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-                        </p>
+                        <div>
+                          <p
+                            style={{
+                              fontSize: '15px',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                              margin: 0,
+                            }}
+                          >
+                            {fund.currency === 'USD' ? '$' : '¥'} {Math.floor(fund.balance).toLocaleString('zh-CN')}
+                          </p>
+                          {fund.currency === 'USD' && (
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                              (¥ {Math.floor(fund.balance * 6.9).toLocaleString('zh-CN')})
+                            </p>
+                          )}
+                        </div>
                       </td>
 
                       <td style={{ padding: '20px' }}>
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
-                          {fund.total_share.toFixed(4)}
+                          {Math.floor(fund.total_share).toLocaleString('zh-CN')}
                         </p>
                       </td>
 
@@ -527,7 +537,10 @@ export default function Funds() {
                           </button>
 
                           <button
-                            onClick={() => navigate(`/funds/${fund.id}/edit`)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/funds/${fund.id}/edit`);
+                            }}
                             style={{
                               width: '36px',
                               height: '36px',
