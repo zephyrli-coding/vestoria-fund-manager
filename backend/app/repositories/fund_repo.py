@@ -28,9 +28,12 @@ class FundRepository:
         """Get fund by name."""
         return self.db.query(Fund).filter(Fund.name == name).first()
 
-    def get_all(self, skip: int = 0, limit: int = 20) -> List[Fund]:
-        """Get all funds with pagination."""
-        return self.db.query(Fund).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int = 20, tag: str = None) -> List[Fund]:
+        """Get all funds with pagination and optional tag filter."""
+        query = self.db.query(Fund)
+        if tag:
+            query = query.filter(Fund.tags.like(f'%{tag}%'))
+        return query.offset(skip).limit(limit).all()
 
     def count(self) -> int:
         """Count total funds."""

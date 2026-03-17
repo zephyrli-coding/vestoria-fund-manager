@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -22,6 +22,7 @@ export default function Funds() {
   const navigate = useNavigate();
   const { funds, loading, fetchFunds, deleteFund } = useFundStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'nav' | 'balance' | 'date'>('date');
   const [sortDesc, setSortDesc] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -30,8 +31,8 @@ export default function Funds() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchFunds();
-  }, [fetchFunds]);
+    fetchFunds(selectedTag || undefined);
+  }, [fetchFunds, selectedTag]);
 
   const handleDelete = async () => {
     if (!fundToDelete) return;
@@ -94,6 +95,20 @@ export default function Funds() {
     }
   };
 
+  // Extract all unique tags from funds
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    funds.forEach(fund => {
+      if (fund.tags) {
+        fund.tags.split(',').forEach(tag => {
+          const trimmed = tag.trim();
+          if (trimmed) tagsSet.add(trimmed);
+        });
+      }
+    });
+    return Array.from(tagsSet).sort();
+  }, [funds]);
+
   const filteredFunds = funds
     .filter(
       (f) =>
@@ -126,6 +141,12 @@ export default function Funds() {
     if (nav >= 1.1) return { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e' };
     if (nav >= 0.9) return { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6' };
     return { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b' };
+  };
+
+  // Parse tags string to array
+  const parseTags = (tags: string): string[] => {
+    if (!tags) return [];
+    return tags.split(',').map(t => t.trim()).filter(t => t);
   };
 
   return (
@@ -208,6 +229,48 @@ export default function Funds() {
             <Filter size={18} />
             筛选
           </button>
+
+          {/* Tag Filter Dropdown */}
+          <select
+            value={selectedTag}
+            onChange={(e) => setSelectedTag(e.target.value)}
+            style={{
+              padding: '12px 16px',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              color: 'var(--text-secondary)',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="">所有标签</option>
+            {allTags.map((tag) => (
+              <option key={tag} value={tag}>
+                #{tag}
+              </option>
+            ))}
+          </select>
+
+          {selectedTag && (
+            <button
+              onClick={() => setSelectedTag('')}
+              style={{
+                padding: '12px 16px',
+                background: 'rgba(99, 102, 241, 0.1)',
+                border: '1px solid #6366f1',
+                borderRadius: '12px',
+                color: '#6366f1',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              清除筛选: #{selectedTag}
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -450,6 +513,22 @@ export default function Funds() {
                             </p>
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
                               ID: {fund.id}
+                              {parseTags(fund.tags).map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    marginLeft: '8px',
+                                    padding: '2px 8px',
+                                    background: 'rgba(99, 102, 241, 0.1)',
+                                    color: '#6366f1',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
                             </p>
                           </div>
                         </div>

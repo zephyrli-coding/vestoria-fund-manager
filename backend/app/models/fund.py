@@ -14,6 +14,7 @@ class Fund(Base):
     name = Column(String(100), nullable=False, unique=True, index=True)
     start_date = Column(String(10), nullable=False)
     currency = Column(String(3), nullable=False, default='CNY')  # CNY or USD
+    tags = Column(String(500), nullable=True, default='')  # Comma-separated tags
     total_share = Column(Float, nullable=False, default=0.0)
     net_asset_value = Column(Float, nullable=False, default=1.0)
     balance = Column(Float, nullable=False, default=0.0)

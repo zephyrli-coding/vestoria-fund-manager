@@ -17,22 +17,22 @@ class FundService:
         self.fund_repo = FundRepository(db)
         self.operation_repo = OperationRepository(db)
 
-    def create_fund(self, name: str, start_date: str, currency: str = 'CNY') -> Fund:
+    def create_fund(self, name: str, start_date: str, currency: str = 'CNY', tags: str = '') -> Fund:
         """Create a new fund."""
         # Check if fund name exists
         existing = self.fund_repo.get_by_name(name)
         if existing:
             raise ValueError(f"Fund with name '{name}' already exists")
 
-        return self.fund_repo.create(name, start_date, currency)
+        return self.fund_repo.create(name, start_date, currency, tags)
 
     def get_fund(self, fund_id: int) -> Optional[Fund]:
         """Get fund by ID."""
         return self.fund_repo.get_by_id(fund_id)
 
-    def list_funds(self, skip: int = 0, limit: int = 20) -> Dict[str, any]:
-        """List all funds with pagination."""
-        funds = self.fund_repo.get_all(skip=skip, limit=limit)
+    def list_funds(self, skip: int = 0, limit: int = 20, tag: str = None) -> Dict[str, any]:
+        """List all funds with pagination and optional tag filter."""
+        funds = self.fund_repo.get_all(skip=skip, limit=limit, tag=tag)
         total = self.fund_repo.count()
         return {
             "items": funds,
@@ -41,8 +41,8 @@ class FundService:
             "page_size": limit
         }
 
-    def update_fund(self, fund_id: int, name: str, currency: str = None) -> Fund:
-        """Update fund name and/or currency."""
+    def update_fund(self, fund_id: int, name: str, currency: str = None, tags: str = None) -> Fund:
+        """Update fund name, currency, and/or tags."""
         fund = self.get_fund(fund_id)
         if not fund:
             raise ValueError("Fund not found")
@@ -53,7 +53,14 @@ class FundService:
             if existing and existing.id != fund_id:
                 raise ValueError(f"Fund with name '{name}' already exists")
 
-        return self.fund_repo.update(fund, name=name, currency=currency)
+        # Build update kwargs
+        kwargs = {'name': name}
+        if currency is not None:
+            kwargs['currency'] = currency
+        if tags is not None:
+            kwargs['tags'] = tags
+
+        return self.fund_repo.update(fund, **kwargs)
 
     def delete_fund(self, fund_id: int) -> None:
         """Delete a fund."""

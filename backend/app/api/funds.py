@@ -25,11 +25,12 @@ def get_fund_service(db: Session = Depends(get_db)) -> FundService:
 def list_funds(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    tag: str = Query(None, description="Filter by tag"),
     service: FundService = Depends(get_fund_service)
 ):
-    """Get all funds."""
+    """Get all funds with optional tag filter."""
     skip = (page - 1) * page_size
-    result = service.list_funds(skip=skip, limit=page_size)
+    result = service.list_funds(skip=skip, limit=page_size, tag=tag)
     return ResponseModel(data=result)
 
 
@@ -41,7 +42,7 @@ def create_fund(
 ):
     """Create a new fund."""
     try:
-        fund = service.create_fund(request.name, request.start_date, request.currency)
+        fund = service.create_fund(request.name, request.start_date, request.currency, request.tags)
         return ResponseModel(data=fund, message="Fund created successfully")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -68,7 +69,7 @@ def update_fund(
 ):
     """Update fund."""
     try:
-        fund = service.update_fund(fund_id, request.name, request.currency)
+        fund = service.update_fund(fund_id, request.name, request.currency, request.tags)
         return ResponseModel(data=fund, message="Fund updated successfully")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

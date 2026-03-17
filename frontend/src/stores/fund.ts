@@ -10,7 +10,7 @@ interface FundState {
 }
 
 interface FundActions {
-  fetchFunds: () => Promise<void>;
+  fetchFunds: (tag?: string) => Promise<void>;
   fetchFundById: (id: number) => Promise<Fund | null>;
   fetchInvestors: (fundId: number) => Promise<Investor[]>;
   fetchOperations: (fundId: number, page?: number, pageSize?: number) => Promise<Operation[]>;
@@ -61,10 +61,14 @@ export const useFundStore = create<FundStore>((set, get) => ({
   loading: false,
   error: null,
 
-  fetchFunds: async () => {
+  fetchFunds: async (tag?: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<PaginatedResponse<Fund>>('/funds');
+      let url = '/funds';
+      if (tag) {
+        url += `?tag=${encodeURIComponent(tag)}`;
+      }
+      const response = await request<PaginatedResponse<Fund>>(url);
 
       if (response.code === 0) {
         set({ funds: response.data.items });

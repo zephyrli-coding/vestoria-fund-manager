@@ -21,7 +21,9 @@ class FundUpdate(BaseModel):
     """Schema for updating a fund."""
 
     name: str = Field(..., min_length=1, max_length=100, description="Fund name")
+    start_date: str = Field(..., description="Start date (YYYY-MM-DD)")
     currency: str = Field(default=None, description="Currency (CNY or USD)")
+    tags: str = Field(default='', description="Comma-separated tags")
 
 
 class FundResponse(BaseModel):
@@ -31,6 +33,7 @@ class FundResponse(BaseModel):
     name: str = Field(..., description="Fund name")
     start_date: str = Field(..., description="Start date")
     currency: str = Field(..., description="Currency (CNY or USD)")
+    tags: str = Field(default='', description="Comma-separated tags")
     total_share: float = Field(..., description="Total shares")
     net_asset_value: float = Field(..., description="Net asset value (NAV)")
     balance: float = Field(..., description="Total balance")

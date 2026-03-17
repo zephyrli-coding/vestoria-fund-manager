@@ -7,7 +7,8 @@ import {
   FileText,
   AlertCircle,
   Check,
-  X
+  X,
+  Tag
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
 
@@ -19,6 +20,7 @@ export default function CreateFund() {
     new Date().toISOString().split('T')[0]
   );
   const [currency, setCurrency] = useState<'CNY' | 'USD'>('CNY');
+  const [tags, setTags] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,7 +35,7 @@ export default function CreateFund() {
     setError('');
 
     try {
-      await createFund({ name: name.trim(), start_date: startDate, currency });
+      await createFund({ name: name.trim(), start_date: startDate, currency, tags });
       navigate('/funds');
     } catch (err: any) {
       setError(err.message || '创建失败');
@@ -261,6 +263,51 @@ export default function CreateFund() {
                 美元
               </button>
             </div>
+          </div>
+
+          {/* Tags Input */}
+          <div style={{ marginBottom: '32px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
+              }}
+            >
+              标签
+            </label>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '14px 16px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <Tag size={20} color="var(--text-muted)" />
+              <input
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="例如：稳健, 成长, 股票型 (用逗号分隔)"
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  fontSize: '15px',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '8px 0 0 0' }}>
+              多个标签请用逗号分隔，如：稳健, 成长, 股票型
+            </p>
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
