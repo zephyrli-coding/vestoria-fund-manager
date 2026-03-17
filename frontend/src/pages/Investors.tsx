@@ -290,7 +290,7 @@ export default function Investors() {
                       fontWeight: 600,
                     }}
                   >
-                    {investor.name.charAt(0)}
+                    {Array.from(investor.name)[0] || '?'}
                   </div>
                   <div>
                     <h3

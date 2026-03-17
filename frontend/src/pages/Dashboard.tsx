@@ -10,7 +10,6 @@ import {
   Plus,
   Calendar,
   DollarSign,
-  PieChart
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
 import type { Fund, Operation } from '@/types/api';
@@ -117,21 +116,41 @@ function FundCard({ fund }: FundCardProps) {
       className="hover-lift"
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h4
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Purple box with first character */}
+          <div
             style={{
-              fontSize: '16px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '20px',
               fontWeight: 600,
-              color: 'var(--text-primary)',
-              margin: 0,
-              marginBottom: '4px',
+              flexShrink: 0,
             }}
           >
-            {fund.name}
-          </h4>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-            成立时间: {fund.start_date}
-          </p>
+            {Array.from(fund.name)[0] || '?'}
+          </div>
+          <div>
+            <h4
+              style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                margin: 0,
+                marginBottom: '4px',
+              }}
+            >
+              {Array.from(fund.name).slice(1).join('') || fund.name}
+            </h4>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+              成立时间: {fund.start_date}
+            </p>
+          </div>
         </div>
         <div
           style={{
@@ -153,44 +172,24 @@ function FundCard({ fund }: FundCardProps) {
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '16px',
           marginTop: '20px',
           paddingTop: '16px',
           borderTop: '1px solid var(--border-color)',
         }}
       >
-        <div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
-            总资产
-          </p>
-          <p
-            style={{
-              fontSize: '18px',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: 0,
-            }}
-          >
-            ¥{fund.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
-            总份额
-          </p>
-          <p
-            style={{
-              fontSize: '18px',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: 0,
-            }}
-          >
-            {fund.total_share.toFixed(4)}
-          </p>
-        </div>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
+          总资产
+        </p>
+        <p
+          style={{
+            fontSize: '18px',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: 0,
+          }}
+        >
+          ¥ {Math.floor(fund.balance).toLocaleString('zh-CN')}
+        </p>
       </div>
     </div>
   );
@@ -264,8 +263,8 @@ export default function Dashboard() {
   }, [fetchFunds]);
 
   // Calculate totals
-  const totalBalance = funds.reduce((sum, f) => sum + f.balance, 0);
-  const totalShares = funds.reduce((sum, f) => sum + f.total_share, 0);
+  const totalBalanceCNY = funds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance * 6.9 : f.balance), 0);
+  const totalBalanceUSD = funds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance : f.balance / 6.9), 0);
 
   const getOperationIcon = (type: string) => {
     switch (type) {
@@ -348,22 +347,67 @@ export default function Dashboard() {
           marginBottom: '32px',
         }}
       >
-        <StatCard
-          title="总资产"
-          value={`¥${totalBalance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`}
-          change="+12.5%"
-          changePositive={true}
-          icon={Wallet}
-          color="#6366f1"
-        />
-        <StatCard
-          title="总份额"
-          value={totalShares.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-          change="+8.3%"
-          changePositive={true}
-          icon={PieChart}
-          color="#22c55e"
-        />
+        {/* Total Assets Card - Custom with CNY and USD */}
+        <div
+          style={{
+            background: 'var(--bg-primary)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid var(--border-color)',
+            transition: 'all 0.3s ease',
+          }}
+          className="hover-lift"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p
+                style={{
+                  fontSize: '14px',
+                  color: 'var(--text-muted)',
+                  marginBottom: '8px',
+                  fontWeight: 500,
+                }}
+              >
+                总资产
+              </p>
+              <h3
+                style={{
+                  fontSize: '28px',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  margin: 0,
+                  letterSpacing: '-0.5px',
+                }}
+              >
+                ¥ {Math.floor(totalBalanceCNY).toLocaleString('zh-CN')}
+              </h3>
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: 'var(--text-muted)',
+                  margin: '4px 0 0 0',
+                }}
+              >
+                $ {Math.floor(totalBalanceUSD).toLocaleString('zh-CN')}
+              </p>
+            </div>
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '14px',
+                background: '#6366f115',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6366f1',
+              }}
+            >
+              <Wallet size={26} />
+            </div>
+          </div>
+        </div>
+
         <StatCard
           title="基金数量"
           value={funds.length.toString()}
