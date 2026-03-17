@@ -42,10 +42,15 @@ class OperationHistoryService:
             # Add operation-specific fields
             if op.amount is not None:
                 record["amount"] = op.amount
-            if op.amount_type:
-                record["amount_type"] = op.amount_type
             if op.share is not None:
                 record["share"] = op.share
+            
+            # For invest/redeem/transfer, export nav_before and amount_type (critical for accurate replay)
+            if op.operation_type in ("invest", "redeem", "transfer"):
+                if op.nav_before is not None:
+                    record["nav_at_op"] = op.nav_before
+                if op.amount_type:
+                    record["amount_type"] = op.amount_type
             
             # For update_nav, export nav_after as target_nav
             if op.operation_type == "update_nav" and op.nav_after is not None:
@@ -87,7 +92,7 @@ class OperationHistoryService:
         # Following lines: operations
         operations = self.db.query(Operation).filter(
             Operation.fund_id == fund_id
-        ).order_by(Operation.operation_date, Operation.id).all()
+        ).order_by(Operation.created_at, Operation.id).all()
 
         for op in operations:
             record = {
@@ -103,10 +108,15 @@ class OperationHistoryService:
             # Add operation-specific fields
             if op.amount is not None:
                 record["amount"] = op.amount
-            if op.amount_type:
-                record["amount_type"] = op.amount_type
             if op.share is not None:
                 record["share"] = op.share
+            
+            # For invest/redeem/transfer, export nav_before and amount_type (critical for accurate replay)
+            if op.operation_type in ("invest", "redeem", "transfer"):
+                if op.nav_before is not None:
+                    record["nav_at_op"] = op.nav_before
+                if op.amount_type:
+                    record["amount_type"] = op.amount_type
             
             # For update_nav, export nav_after as target_nav
             if op.operation_type == "update_nav" and op.nav_after is not None:
@@ -299,6 +309,9 @@ class OperationHistoryService:
         elif op_type == "invest":
             name = op.get("investor_name")
             amount = op.get("amount")
+            share = op.get("share")  # Exported share
+            nav_at_op = op.get("nav_at_op")  # NAV at the time of original invest
+            
             if not name or amount is None:
                 raise ValueError("investor_name and amount are required for invest")
             
@@ -309,29 +322,53 @@ class OperationHistoryService:
                 investor_id = result.id
                 investor_map[name] = investor_id
             
-            investor_service.invest(fund_id, investor_id, amount, op_date)
+            # If nav_at_op is provided, use it for share calculation to match original
+            if nav_at_op is not None:
+                investor_service.invest(fund_id, investor_id, amount, op_date, use_nav=nav_at_op)
+            else:
+                investor_service.invest(fund_id, investor_id, amount, op_date)
 
         elif op_type == "redeem":
             name = op.get("investor_name")
             amount = op.get("amount")
-            amount_type = op.get("amount_type", "share")
-            if not name or amount is None:
-                raise ValueError("investor_name and amount are required for redeem")
+            share = op.get("share")  # Use exported share if available
+            amount_type = op.get("amount_type", "balance")
+            nav_at_op = op.get("nav_at_op")  # NAV at the time of original redeem
+            
+            if not name:
+                raise ValueError("investor_name is required for redeem")
             
             investor_id = investor_map.get(name)
             if not investor_id:
                 raise ValueError(f"Investor '{name}' not found")
             
-            investor_service.redeem(fund_id, investor_id, amount, amount_type, op_date)
+            # Determine the actual amount to redeem
+            if share is not None:
+                # If share is provided (from export), use it directly
+                redeem_amount = share
+                redeem_type = "share"
+            elif amount is not None:
+                redeem_amount = amount
+                redeem_type = amount_type
+            else:
+                raise ValueError("amount or share is required for redeem")
+            
+            # Use nav_at_op for accurate replay if available
+            if nav_at_op is not None:
+                investor_service.redeem(fund_id, investor_id, redeem_amount, redeem_type, op_date, use_nav=nav_at_op)
+            else:
+                investor_service.redeem(fund_id, investor_id, redeem_amount, redeem_type, op_date)
 
         elif op_type == "transfer":
             from_name = op.get("from_investor")
             to_name = op.get("to_investor")
             amount = op.get("amount")
             amount_type = op.get("amount_type", "share")
+            share = op.get("share")  # Use exported share if available
+            nav_at_op = op.get("nav_at_op")  # NAV at the time of original transfer
             
-            if not from_name or not to_name or amount is None:
-                raise ValueError("from_investor, to_investor and amount are required for transfer")
+            if not from_name or not to_name:
+                raise ValueError("from_investor and to_investor are required for transfer")
             
             from_id = investor_map.get(from_name)
             to_id = investor_map.get(to_name)
@@ -344,7 +381,22 @@ class OperationHistoryService:
                 to_id = result.id
                 investor_map[to_name] = to_id
             
-            investor_service.transfer(fund_id, from_id, to_id, amount, amount_type, op_date)
+            # If share is provided (from export), use it directly
+            if share is not None:
+                # Use share directly as transfer amount (type="share") to avoid NAV recalculation
+                # Also pass nav_at_op for accurate balance calculation
+                if nav_at_op is not None:
+                    investor_service.transfer(fund_id, from_id, to_id, share, "share", op_date, use_nav=nav_at_op)
+                else:
+                    investor_service.transfer(fund_id, from_id, to_id, share, "share", op_date)
+            elif amount is not None:
+                # Use nav_at_op for accurate replay if available
+                if nav_at_op is not None:
+                    investor_service.transfer(fund_id, from_id, to_id, amount, amount_type, op_date, use_nav=nav_at_op)
+                else:
+                    investor_service.transfer(fund_id, from_id, to_id, amount, amount_type, op_date)
+            else:
+                raise ValueError("amount or share is required for transfer")
 
         elif op_type == "update_nav":
             # Try target_nav first (from export), then amount (for backward compatibility)
@@ -352,16 +404,8 @@ class OperationHistoryService:
             capital = op.get("amount")
             
             if target_nav is not None:
-                # Use target_nav directly - calculate capital from target_nav and current total_share
-                fund = self.db.query(Fund).filter(Fund.id == fund_id).first()
-                if fund and fund.total_share > 0:
-                    calculated_capital = target_nav * fund.total_share
-                    fund_service.update_nav(fund_id, calculated_capital, op_date)
-                else:
-                    # If no shares yet, just set NAV directly
-                    fund.net_asset_value = target_nav
-                    fund.balance = fund.total_share * target_nav
-                    self.db.commit()
+                # Use target_nav directly - pass it to update_nav
+                fund_service.update_nav(fund_id, capital or 0, op_date, target_nav=target_nav)
             elif capital is not None:
                 fund_service.update_nav(fund_id, capital, op_date)
             else:
