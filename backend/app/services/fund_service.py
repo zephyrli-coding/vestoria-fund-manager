@@ -62,15 +62,22 @@ class FundService:
             raise ValueError("Fund not found")
         self.fund_repo.delete(fund)
 
-    def update_nav(self, fund_id: int, capital: float, date: str) -> Dict[str, any]:
-        """Update fund NAV and create history record."""
+    def update_nav(self, fund_id: int, capital: float, date: str, target_nav: float = None) -> Dict[str, any]:
+        """Update fund NAV and create history record.
+        
+        Args:
+            fund_id: Fund ID
+            capital: Total capital (used to calculate balance)
+            date: Date string
+            target_nav: If provided, use this NAV directly instead of calculating from capital
+        """
         from app.repositories.investor_repo import InvestorRepository
 
         fund = self.get_fund(fund_id)
         if not fund:
             raise ValueError("Fund not found")
 
-        if capital <= 0:
+        if capital <= 0 and target_nav is None:
             raise ValueError("Capital must be greater than 0")
 
         # Check if fund has investors and shares
@@ -81,8 +88,14 @@ class FundService:
         old_balance = fund.balance
 
         # Calculate new NAV
-        new_nav = round(capital / fund.total_share, 6)
-        new_balance = capital
+        if target_nav is not None:
+            # Use provided target_nav directly
+            new_nav = round(target_nav, 6)
+            new_balance = round(fund.total_share * new_nav, 6)
+        else:
+            # Calculate from capital
+            new_nav = round(capital / fund.total_share, 6)
+            new_balance = capital
 
         # Update fund
         self.fund_repo.update_nav(fund, new_nav, new_balance)

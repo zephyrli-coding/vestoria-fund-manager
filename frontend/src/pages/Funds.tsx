@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -10,10 +10,13 @@ import {
   Eye,
   Filter,
   Download,
-  ArrowUpDown
+  ArrowUpDown,
+  Upload
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
 import type { Fund } from '@/types/api';
+
+const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 export default function Funds() {
   const navigate = useNavigate();
@@ -23,6 +26,8 @@ export default function Funds() {
   const [sortDesc, setSortDesc] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [fundToDelete, setFundToDelete] = useState<Fund | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchFunds();
@@ -36,6 +41,56 @@ export default function Funds() {
       setFundToDelete(null);
     } catch (error) {
       console.error('Delete failed:', error);
+    }
+  };
+
+  // Handle import fund from JSONL
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    try {
+      const content = await file.text();
+      
+      console.log('Uploading file content length:', content.length);
+      
+      const response = await fetch(`${API_BASE_URL}/funds/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Response result:', result);
+      
+      if (result.code === 0) {
+        alert(`导入成功！\n基金名称: ${result.data.fund_name}\n操作数: ${result.data.success}/${result.data.total_operations}`);
+        fetchFunds(); // Refresh fund list
+      } else {
+        alert('导入失败: ' + (result.message || '未知错误'));
+      }
+    } catch (error: any) {
+      console.error('Import error:', error);
+      alert('导入失败: ' + (error?.message || String(error)));
+    } finally {
+      setImportLoading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -170,6 +225,37 @@ export default function Funds() {
           >
             <Download size={18} />
             导出
+          </button>
+
+          {/* Hidden file input for import */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".jsonl,.json,.txt"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+
+          <button
+            onClick={handleImportClick}
+            disabled={importLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 16px',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              color: 'var(--text-secondary)',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: importLoading ? 'not-allowed' : 'pointer',
+              opacity: importLoading ? 0.6 : 1,
+            }}
+          >
+            <Upload size={18} />
+            {importLoading ? '导入中...' : '导入'}
           </button>
 
           <button

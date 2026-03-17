@@ -41,3 +41,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Migration data files
+backend/migrations/000_migrate_old_records/fund_data_jsonl/
+backend/migrations/000_migrate_old_records/fund_data_pkl/
+*.pkl
+*.jsonl

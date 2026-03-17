@@ -70,7 +70,23 @@ class FundRepository:
         nav: float,
         balance: float
     ) -> FundHistory:
-        """Create fund history record."""
+        """Create fund history record. If date already exists, update it."""
+        # Check if history record already exists for this date
+        existing = self.db.query(FundHistory).filter(
+            FundHistory.fund_id == fund_id,
+            FundHistory.history_date == history_date
+        ).first()
+        
+        if existing:
+            # Update existing record
+            existing.total_share = total_share
+            existing.net_asset_value = nav
+            existing.balance = balance
+            self.db.commit()
+            self.db.refresh(existing)
+            return existing
+        
+        # Create new record
         history = FundHistory(
             fund_id=fund_id,
             history_date=history_date,
