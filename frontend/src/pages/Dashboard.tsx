@@ -116,21 +116,41 @@ function FundCard({ fund }: FundCardProps) {
       className="hover-lift"
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h4
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Purple box with first character */}
+          <div
             style={{
-              fontSize: '16px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '20px',
               fontWeight: 600,
-              color: 'var(--text-primary)',
-              margin: 0,
-              marginBottom: '4px',
+              flexShrink: 0,
             }}
           >
-            {fund.name}
-          </h4>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-            成立时间: {fund.start_date}
-          </p>
+            {Array.from(fund.name)[0] || '?'}
+          </div>
+          <div>
+            <h4
+              style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                margin: 0,
+                marginBottom: '4px',
+              }}
+            >
+              {fund.name.slice(1) || fund.name}
+            </h4>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+              成立时间: {fund.start_date}
+            </p>
+          </div>
         </div>
         <div
           style={{
@@ -152,44 +172,24 @@ function FundCard({ fund }: FundCardProps) {
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '16px',
           marginTop: '20px',
           paddingTop: '16px',
           borderTop: '1px solid var(--border-color)',
         }}
       >
-        <div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
-            总资产
-          </p>
-          <p
-            style={{
-              fontSize: '18px',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: 0,
-            }}
-          >
-            ¥ {Math.floor(fund.balance).toLocaleString('zh-CN')}
-          </p>
-        </div>
-        <div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
-            总份额
-          </p>
-          <p
-            style={{
-              fontSize: '18px',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: 0,
-            }}
-          >
-            {Math.floor(fund.total_share).toLocaleString('zh-CN')}
-          </p>
-        </div>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
+          总资产
+        </p>
+        <p
+          style={{
+            fontSize: '18px',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: 0,
+          }}
+        >
+          ¥ {Math.floor(fund.balance).toLocaleString('zh-CN')}
+        </p>
       </div>
     </div>
   );
