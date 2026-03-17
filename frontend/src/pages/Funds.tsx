@@ -435,7 +435,7 @@ export default function Funds() {
                               flexShrink: 0,
                             }}
                           >
-                            {fund.name.charAt(0)}
+                            {Array.from(fund.name)[0] || '?'}
                           </div>
                           <div>
                             <p

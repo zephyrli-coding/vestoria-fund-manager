@@ -162,7 +162,7 @@ export default function InvestorDetail() {
               fontWeight: 700,
             }}
           >
-            {investor.name.charAt(0)}
+            {Array.from(investor.name)[0] || '?'}
           </div>
           <div>
             <h1

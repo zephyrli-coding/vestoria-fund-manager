@@ -839,7 +839,7 @@ export default function FundDetail() {
                                     flexShrink: 0,
                                   }}
                                 >
-                                  {investor.name.charAt(0)}
+                                  {Array.from(investor.name)[0] || '?'}
                                 </div>
                                 <div>
                                   <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>
