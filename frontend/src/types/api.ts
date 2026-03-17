@@ -10,11 +10,26 @@ export interface Fund {
   name: string;
   start_date: string;
   currency: 'CNY' | 'USD';
+  tags: string;
   total_share: number;
   net_asset_value: number;
   balance: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface FundCreate {
+  name: string;
+  start_date: string;
+  currency: 'CNY' | 'USD';
+  tags?: string;
+}
+
+export interface FundUpdate {
+  name: string;
+  start_date: string;
+  currency: 'CNY' | 'USD';
+  tags?: string;
 }
 
 export interface Investor {
