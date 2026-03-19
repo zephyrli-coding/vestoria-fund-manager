@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   ArrowLeft,
   Save,
@@ -16,6 +17,7 @@ import type { Fund } from '@/types/api';
 export default function EditFund() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  useDocumentTitle('Vestoria - 编辑基金');
   const { fetchFundById, updateFund, deleteFund } = useFundStore();
   
   const [fund, setFund] = useState<Fund | null>(null);

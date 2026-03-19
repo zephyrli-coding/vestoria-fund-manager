@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { Download, Upload, FileJson, AlertCircle, CheckCircle } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
 
@@ -7,6 +8,7 @@ const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 export default function DataImportExport() {
   const { id } = useParams<{ id: string }>();
+  useDocumentTitle('Vestoria - 数据导入导出');
   const fundId = parseInt(id || '0');
   const { currentFund } = useFundStore();
   

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { TrendingUp, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 
 export default function Login() {
   const navigate = useNavigate();
+  useDocumentTitle('Vestoria - 登录');
   const { login } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
