@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   ArrowLeft,
   Plus,

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   Plus,
   Search,
@@ -18,6 +19,7 @@ import type { Fund } from '@/types/api';
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 export default function Funds() {
+  useDocumentTitle('Vestoria - 基金管理');
   const navigate = useNavigate();
   const { funds, loading, fetchFunds, deleteFund } = useFundStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -214,24 +216,6 @@ export default function Funds() {
 
   return (
     <div className="animate-fade-in">
-      {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1
-          style={{
-            fontSize: '32px',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            margin: '0 0 8px 0',
-            letterSpacing: '-0.5px',
-          }}
-        >
-          基金管理
-        </h1>
-        <p style={{ fontSize: '15px', color: 'var(--text-muted)', margin: 0 }}>
-          管理您的所有基金，查看详细数据和操作记录
-        </p>
-      </div>
-
       {/* Action Bar */}
       <div
         style={{
@@ -274,25 +258,6 @@ export default function Funds() {
             />
           </div>
 
-          <button
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 16px',
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              color: 'var(--text-secondary)',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowUpDown size={18} />
-            排序
-          </button>
-
           {/* Tag Filter Dropdown */}
           <select
             value={selectedTag}
@@ -316,24 +281,6 @@ export default function Funds() {
               </option>
             ))}
           </select>
-
-          {selectedTag && (
-            <button
-              onClick={() => setSelectedTag('')}
-              style={{
-                padding: '12px 16px',
-                background: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid #6366f1',
-                borderRadius: '12px',
-                color: '#6366f1',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              清除筛选: #{selectedTag}
-            </button>
-          )}
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -578,12 +525,11 @@ export default function Funds() {
                               {Array.from(fund.name).slice(1).join('') || fund.name}
                             </p>
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                              ID: {fund.id}
                               {parseTags(fund.tags).map((tag, idx) => (
                                 <span
                                   key={idx}
                                   style={{
-                                    marginLeft: '8px',
+                                    marginRight: '8px',
                                     padding: '2px 8px',
                                     background: 'rgba(99, 102, 241, 0.1)',
                                     color: '#6366f1',

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   TrendingUp,
   TrendingDown,
@@ -197,6 +198,7 @@ function FundCard({ fund }: FundCardProps) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  useDocumentTitle('Vestoria - 仪表盘');
   const { funds, loading, fetchFunds } = useFundStore();
   const [recentOperations] = useState<Operation[]>([
     {

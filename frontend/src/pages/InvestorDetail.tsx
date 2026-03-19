@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   LineChart,
   Line,
@@ -44,6 +45,7 @@ interface InvestorReturnSnapshot {
 export default function InvestorDetail() {
   const { id, investorId } = useParams<{ id: string; investorId: string }>();
   const navigate = useNavigate();
+  useDocumentTitle('Vestoria - 投资者详情');
   const { fetchFundById, fetchInvestors } = useFundStore();
 
   const [fund, setFund] = useState<Fund | null>(null);
