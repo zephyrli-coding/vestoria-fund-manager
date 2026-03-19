@@ -1,3 +1,4 @@
+import { apiUrl } from '@/config/api';
 import { create } from 'zustand';
 import type { Fund, FundCreate, FundUpdate, PaginatedResponse, FundChartData, Investor, Operation } from '@/types/api';
 
@@ -40,7 +41,7 @@ const request = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  const response = await fetch(`http://localhost:8000/api/v1${endpoint}`, {
+  const response = await fetch(apiUrl(endpoint), {
     ...options,
     headers,
   });
@@ -260,10 +261,14 @@ export const useFundStore = create<FundStore>((set, get) => ({
       if (response.code === 0) {
         set({ funds: [...get().funds, response.data] });
       } else {
-        set({ error: response.message || 'Failed to create fund' });
+        const errorMsg = response.message || 'Failed to create fund';
+        set({ error: errorMsg });
+        throw new Error(errorMsg);
       }
     } catch (error: any) {
-      set({ error: error.message || 'Failed to create fund' });
+      const errorMsg = error.message || 'Failed to create fund';
+      set({ error: errorMsg });
+      throw new Error(errorMsg);
     } finally {
       set({ loading: false });
     }

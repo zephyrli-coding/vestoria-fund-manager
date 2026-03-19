@@ -15,7 +15,8 @@ import { useFundStore } from '@/stores/fund';
 
 export default function CreateFund() {
   const navigate = useNavigate();
-  const { createFund } = useFundStore();
+  useDocumentTitle('Vestoria - 创建基金');
+  const { createFund, fetchFunds } = useFundStore();
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -37,6 +38,7 @@ export default function CreateFund() {
 
     try {
       await createFund({ name: name.trim(), start_date: startDate, currency, tags });
+      await fetchFunds(); // 刷新基金列表
       navigate('/funds');
     } catch (err: any) {
       setError(err.message || '创建失败');

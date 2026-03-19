@@ -15,6 +15,7 @@ class FundCreate(FundBase):
     """Schema for creating a fund."""
 
     currency: str = Field(default='CNY', description="Currency (CNY or USD)")
+    tags: str = Field(default='', description="Tags for the fund")
 
 
 class FundUpdate(BaseModel):

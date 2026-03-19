@@ -14,9 +14,8 @@ import {
   Upload
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
+import { apiUrl } from '@/config/api';
 import type { Fund } from '@/types/api';
-
-const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 export default function Funds() {
   useDocumentTitle('Vestoria - 基金管理');
@@ -62,7 +61,7 @@ export default function Funds() {
       
       console.log('Uploading file content length:', content.length);
       
-      const response = await fetch(`${API_BASE_URL}/funds/import`, {
+      const response = await fetch(apiUrl('/funds/import'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content })
@@ -105,7 +104,7 @@ export default function Funds() {
       const token = localStorage.getItem('token');
       
       // Build export URL with current filters
-      let url = `${API_BASE_URL}/funds/export`;
+      let url = apiUrl('/funds/export');
       if (selectedTag) {
         url += `?tag=${encodeURIComponent(selectedTag)}`;
       }

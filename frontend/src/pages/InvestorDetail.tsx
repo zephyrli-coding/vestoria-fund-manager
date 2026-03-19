@@ -91,7 +91,7 @@ export default function InvestorDetail() {
   const loadReturnHistory = async () => {
     if (!id || !investorId) return;
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/funds/${id}/investors/${investorId}/return-history`);
+      const response = await fetch(apiUrl(`/funds/${id}/investors/${investorId}/return-history`));
       const result = await response.json();
       if (result.code === 0 && result.data?.snapshots) {
         setReturnHistory(result.data.snapshots);

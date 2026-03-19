@@ -1,0 +1,50 @@
+# Deploy with Docker Compose
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fund-manager-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:///data/fund_manager.db
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_DAYS=7
+    volumes:
+      - ./data:/app/data
+    networks:
+      - fund-manager-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fund-manager-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - fund-manager-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: fund-manager-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - fund-manager-network
+
+networks:
+  fund-manager-network:
+    driver: bridge

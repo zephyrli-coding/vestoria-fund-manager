@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiUrl } from '@/config/api';
 
 // 全局类型
 interface AuthState {
@@ -24,7 +25,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   login: async (username, password) => {
     try {
       // 调用 API
-      const response = await fetch('/api/v1/auth/login', {
+      const response = await fetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -39,7 +40,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         localStorage.setItem('token', token);
         
         // 解析 user（需要从 me 接口获取）
-        const meResponse = await fetch('/api/v1/auth/me', {
+        const meResponse = await fetch(apiUrl('/auth/me'), {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         const meData = await meResponse.json();
@@ -78,7 +79,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     try {
       // 验证 token 是否有效
-      const response = await fetch('/api/v1/auth/me', {
+      const response = await fetch(apiUrl('/auth/me'), {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
