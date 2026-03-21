@@ -28,8 +28,8 @@ cp .env.example .env
 docker compose up -d --build
 
 # 4. 访问系统
-# 前端: http://localhost
-# API 文档: http://localhost/docs
+# 前端: http://localhost:20260
+# API 文档: http://localhost:20260/docs
 # 默认账号: admin / [REDACTED_TEST_PASSWORD]
 ```
 
