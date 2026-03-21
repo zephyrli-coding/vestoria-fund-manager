@@ -1,4 +1,7 @@
-# Deploy with Docker Compose
+# Docker Compose Configuration
+# 用法:
+# 1. 复制 .env.example 为 .env 并配置
+# 2. docker compose up -d
 
 version: '3.8'
 
@@ -24,23 +27,12 @@ services:
       dockerfile: Dockerfile
     container_name: fund-manager-frontend
     restart: unless-stopped
-    depends_on:
-      - backend
-    networks:
-      - fund-manager-network
-
-  nginx:
-    image: nginx:alpine
-    container_name: fund-manager-nginx
-    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
+    environment:
+      - API_URL=http://backend:8000
     depends_on:
-      - frontend
       - backend
     networks:
       - fund-manager-network
