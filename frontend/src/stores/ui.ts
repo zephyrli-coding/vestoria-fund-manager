@@ -4,8 +4,6 @@ interface UIState {
   sidebarCollapsed: boolean;
   theme: 'light' | 'dark';
   notifications: Notification[];
-  addNotification: (notification: Notification) => void;
-  removeNotification: (id: string) => void;
 }
 
 interface Notification {

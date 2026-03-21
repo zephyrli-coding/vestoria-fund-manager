@@ -33,7 +33,7 @@ interface FundStore extends FundState, FundActions {}
 const getToken = () => localStorage.getItem('token');
 
 // 辅助函数：API 请求
-const request = async (endpoint: string, options: RequestInit = {}) => {
+const request = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const token = getToken();
   const headers = {
     'Content-Type': 'application/json',
