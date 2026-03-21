@@ -457,7 +457,7 @@ export default function Funds() {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {col.label}
-                        {sortBy === col.key && col.key !== 'actions' && col.key !== 'shares' && (
+                        {col.key !== 'actions' && col.key !== 'shares' && sortBy === (col.key as typeof sortBy) && (
                           <ArrowUpDown
                             size={14}
                             style={{

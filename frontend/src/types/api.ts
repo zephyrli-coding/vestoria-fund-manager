@@ -1,5 +1,12 @@
 // 全局类型定义
 
+// API 通用响应格式
+export interface ApiResponse<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+
 export interface User {
   id: number;
   username: string;

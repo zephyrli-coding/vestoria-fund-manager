@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { apiUrl } from '@/config/api';
+import type { User } from '@/types/api';
 
 // 全局类型
 interface AuthState {
