@@ -14,7 +14,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_DAYS=7
     volumes:
-      - ./data:/app/data
+      - ${DATA_PATH:-./data}:/app/data
     networks:
       - fund-manager-network
 
