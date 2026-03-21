@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { Download, Upload, FileJson, AlertCircle, CheckCircle } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
+import { apiUrl } from '@/config/api';
 
 export default function DataImportExport() {
   const { id } = useParams<{ id: string }>();

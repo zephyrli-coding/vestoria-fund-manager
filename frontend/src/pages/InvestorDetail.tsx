@@ -21,6 +21,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
+import { apiUrl } from '@/config/api';
 import type { Fund, Investor } from '@/types/api';
 
 // 货币格式化工具
@@ -78,7 +79,15 @@ export default function InvestorDetail() {
         }
 
         // 加载收益历史
-        await loadReturnHistory();
+        try {
+          const response = await fetch(apiUrl(`/funds/${id}/investors/${investorId}/return-history`));
+          const result = await response.json();
+          if (result.code === 0 && result.data?.snapshots) {
+            setReturnHistory(result.data.snapshots);
+          }
+        } catch (error) {
+          console.error('Failed to load return history:', error);
+        }
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -87,19 +96,6 @@ export default function InvestorDetail() {
     };
     loadData();
   }, [id, investorId, fetchFundById, fetchInvestors]);
-
-  const loadReturnHistory = async () => {
-    if (!id || !investorId) return;
-    try {
-      const response = await fetch(apiUrl(`/funds/${id}/investors/${investorId}/return-history`));
-      const result = await response.json();
-      if (result.code === 0 && result.data?.snapshots) {
-        setReturnHistory(result.data.snapshots);
-      }
-    } catch (error) {
-      console.error('Failed to load return history:', error);
-    }
-  };
 
   if (loading) {
     return (
