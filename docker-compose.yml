@@ -13,7 +13,7 @@ services:
     container_name: fund-manager-backend
     restart: unless-stopped
     environment:
-      - DATABASE_URL=sqlite:///app/data/fund_manager.db
+      - DATABASE_URL=sqlite:////app/data/fund_manager.db
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_DAYS=7
     volumes:
