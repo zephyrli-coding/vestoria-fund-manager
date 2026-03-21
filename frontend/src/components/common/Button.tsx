@@ -3,7 +3,8 @@ import { Button as AntButton } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
 export interface ButtonProps {
-  type?: 'primary' | 'secondary' | 'danger' | 'default' | 'dashed' | 'text' | 'link';
+  type?: 'primary' | 'default' | 'dashed' | 'text' | 'link';
+  danger?: boolean;
   size?: 'small' | 'middle' | 'large';
   icon?: React.ReactNode;
   loading?: boolean;
@@ -23,6 +24,7 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   block = false,
   ghost = false,
+  danger = false,
   onClick,
   children,
   style,
@@ -36,6 +38,7 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled}
       block={block}
       ghost={ghost}
+      danger={danger}
       onClick={onClick}
       style={{
         height: type === 'default' || type === 'link' ? '32px' : '36px',

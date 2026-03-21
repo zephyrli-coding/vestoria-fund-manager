@@ -1,0 +1,42 @@
+# Docker Compose Configuration
+# 用法:
+# 1. 复制 .env.example 为 .env 并配置
+# 2. docker compose up -d
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fund-manager-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:////app/data/fund_manager.db
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_DAYS=7
+    volumes:
+      - ${DATA_PATH:-./data}:/app/data
+    networks:
+      - fund-manager-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fund-manager-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - API_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - fund-manager-network
+
+networks:
+  fund-manager-network:
+    driver: bridge

@@ -3,6 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import engine, Base
+# Import models to register them with Base.metadata
+import app.models
 from app.api import auth, funds, investors, operation_history
 
 settings = get_settings()
@@ -32,8 +34,27 @@ app.include_router(investors.router, prefix=f"{settings.API_V1_PREFIX}/funds/{{f
 
 @app.on_event("startup")
 def startup_event():
-    """Create database tables on startup."""
+    """Create database tables and default admin on startup."""
     Base.metadata.create_all(bind=engine)
+    
+    # Create default admin if not exists
+    from app.db import SessionLocal
+    from app.models.admin import Admin
+    from app.services.auth_service import AuthService
+    
+    db = SessionLocal()
+    try:
+        admin = db.query(Admin).filter(Admin.username == "admin").first()
+        if not admin:
+            admin = Admin(
+                username="admin",
+                password_hash=AuthService.get_password_hash("[REDACTED_TEST_PASSWORD]")
+            )
+            db.add(admin)
+            db.commit()
+            print("✅ Default admin created: username=admin, password=[REDACTED_TEST_PASSWORD]")
+    finally:
+        db.close()
 
 
 @app.get("/")

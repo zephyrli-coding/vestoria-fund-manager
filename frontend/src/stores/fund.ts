@@ -1,5 +1,6 @@
+import { apiUrl } from '@/config/api';
 import { create } from 'zustand';
-import type { Fund, FundCreate, FundUpdate, PaginatedResponse, FundChartData, Investor, Operation } from '@/types/api';
+import type { Fund, FundCreate, FundUpdate, PaginatedResponse, FundChartData, Investor, Operation, ApiResponse } from '@/types/api';
 
 interface FundState {
   funds: Fund[];
@@ -32,7 +33,7 @@ interface FundStore extends FundState, FundActions {}
 const getToken = () => localStorage.getItem('token');
 
 // 辅助函数：API 请求
-const request = async (endpoint: string, options: RequestInit = {}) => {
+const request = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const token = getToken();
   const headers = {
     'Content-Type': 'application/json',
@@ -40,7 +41,7 @@ const request = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  const response = await fetch(`http://localhost:8000/api/v1${endpoint}`, {
+  const response = await fetch(apiUrl(endpoint), {
     ...options,
     headers,
   });
@@ -68,7 +69,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       if (tag) {
         url += `?tag=${encodeURIComponent(tag)}`;
       }
-      const response = await request<PaginatedResponse<Fund>>(url);
+      const response = await request<ApiResponse<PaginatedResponse<Fund>>>(url);
 
       if (response.code === 0) {
         set({ funds: response.data.items });
@@ -85,7 +86,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   fetchFundById: async (id: number) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<{ data: Fund }>(`/funds/${id}`);
+      const response = await request<ApiResponse<Fund>>(`/funds/${id}`);
 
       if (response.code === 0) {
         set({ currentFund: response.data });
@@ -105,7 +106,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   fetchInvestors: async (fundId: number) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<PaginatedResponse<Investor>>(`/funds/${fundId}/investors`);
+      const response = await request<ApiResponse<PaginatedResponse<Investor>>>(`/funds/${fundId}/investors`);
 
       if (response.code === 0) {
         set({ investors: response.data.items });
@@ -125,7 +126,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   fetchOperations: async (fundId: number, page: number = 1, pageSize: number = 50) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<PaginatedResponse<Operation>>(
+      const response = await request<ApiResponse<PaginatedResponse<Operation>>>(
         `/funds/${fundId}/investors/operations?page=${page}&page_size=${pageSize}`
       );
 
@@ -152,7 +153,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       if (endDate) params.push(`end_date=${endDate}`);
       if (params.length > 0) url += '?' + params.join('&');
       
-      const response = await request<{ data: FundChartData }>(url);
+      const response = await request<ApiResponse<FundChartData>>(url);
 
       if (response.code === 0) {
         return response.data;
@@ -172,7 +173,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const today = new Date().toISOString().split('T')[0];
-      const response = await request<{ data: Investor }>(`/funds/${fundId}/investors`, {
+      const response = await request<ApiResponse<Investor>>(`/funds/${fundId}/investors`, {
         method: 'POST',
         body: JSON.stringify({ name, date: today }),
       });
@@ -192,7 +193,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   invest: async (fundId: number, investorId: number, amount: number, date: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<{ data: any }>(`/funds/${fundId}/investors/${investorId}/invest`, {
+      const response = await request<ApiResponse<any>>(`/funds/${fundId}/investors/${investorId}/invest`, {
         method: 'POST',
         body: JSON.stringify({ amount, date }),
       });
@@ -210,7 +211,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   redeem: async (fundId: number, investorId: number, amount: number, amountType: 'share' | 'balance', date: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<{ data: any }>(`/funds/${fundId}/investors/${investorId}/redeem`, {
+      const response = await request<ApiResponse<any>>(`/funds/${fundId}/investors/${investorId}/redeem`, {
         method: 'POST',
         body: JSON.stringify({ amount, amount_type: amountType, date }),
       });
@@ -228,7 +229,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   transfer: async (fundId: number, fromInvestorId: number, toInvestorId: number, amount: number, amountType: 'share' | 'balance', date: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<{ data: any }>(`/funds/${fundId}/investors/transfer`, {
+      const response = await request<ApiResponse<any>>(`/funds/${fundId}/investors/transfer`, {
         method: 'POST',
         body: JSON.stringify({
           from_investor_id: fromInvestorId,
@@ -252,7 +253,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   createFund: async (data: FundCreate) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<{ data: Fund }>('/funds', {
+      const response = await request<ApiResponse<Fund>>('/funds', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -260,10 +261,14 @@ export const useFundStore = create<FundStore>((set, get) => ({
       if (response.code === 0) {
         set({ funds: [...get().funds, response.data] });
       } else {
-        set({ error: response.message || 'Failed to create fund' });
+        const errorMsg = response.message || 'Failed to create fund';
+        set({ error: errorMsg });
+        throw new Error(errorMsg);
       }
     } catch (error: any) {
-      set({ error: error.message || 'Failed to create fund' });
+      const errorMsg = error.message || 'Failed to create fund';
+      set({ error: errorMsg });
+      throw new Error(errorMsg);
     } finally {
       set({ loading: false });
     }
@@ -272,7 +277,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   updateFund: async (id: number, data: FundUpdate) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<{ data: Fund }>(`/funds/${id}`, {
+      const response = await request<ApiResponse<Fund>>(`/funds/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -315,7 +320,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   updateNav: async (id: number, capital: number, date: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<{ data: any }>(`/funds/${id}/update-nav`, {
+      const response = await request<ApiResponse<any>>(`/funds/${id}/update-nav`, {
         method: 'POST',
         body: JSON.stringify({ capital, date }),
       });

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { apiUrl } from '@/config/api';
 import {
   LineChart,
   Line,
@@ -148,7 +149,7 @@ export default function FundDetail() {
   const handleExportOperations = async () => {
     if (!id) return;
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/funds/${id}/operations/export`);
+      const response = await fetch(apiUrl(`/funds/${id}/operations/export`));
       if (!response.ok) throw new Error('Export failed');
       
       const content = await response.text();

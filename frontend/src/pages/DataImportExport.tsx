@@ -3,8 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { Download, Upload, FileJson, AlertCircle, CheckCircle } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
-
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+import { apiUrl } from '@/config/api';
 
 export default function DataImportExport() {
   const { id } = useParams<{ id: string }>();
@@ -20,7 +19,7 @@ export default function DataImportExport() {
   // Export operations
   const handleExport = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/funds/${fundId}/operations/export`);
+      const response = await fetch(apiUrl(`/funds/${fundId}/operations/export`));
       if (!response.ok) throw new Error('Export failed');
       
       const content = await response.text();
@@ -51,7 +50,7 @@ export default function DataImportExport() {
     setImportResult(null);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/funds/${fundId}/operations/import`, {
+      const response = await fetch(apiUrl(`/funds/${fundId}/operations/import`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
