@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   Plus,
@@ -20,9 +20,17 @@ import type { Fund } from '@/types/api';
 export default function Funds() {
   useDocumentTitle('Vestoria - 基金管理');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { funds, loading, fetchFunds, deleteFund } = useFundStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTag, setSelectedTag] = useState('');
+  const selectedTag = searchParams.get('tag') || '';
+  const setSelectedTag = (tag: string) => {
+    if (tag) {
+      setSearchParams({ tag });
+    } else {
+      setSearchParams({});
+    }
+  };
   const [sortBy, setSortBy] = useState<'name' | 'nav' | 'balance' | 'date'>('date');
   const [sortDesc, setSortDesc] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);

@@ -16,7 +16,7 @@ interface FundActions {
   fetchInvestors: (fundId: number) => Promise<Investor[]>;
   fetchOperations: (fundId: number, page?: number, pageSize?: number) => Promise<Operation[]>;
   fetchChartData: (fundId: number, startDate?: string, endDate?: string) => Promise<FundChartData | null>;
-  addInvestor: (fundId: number, name: string) => Promise<void>;
+  addInvestor: (fundId: number, name: string, date?: string) => Promise<void>;
   invest: (fundId: number, investorId: number, amount: number, date: string) => Promise<void>;
   redeem: (fundId: number, investorId: number, amount: number, amountType: 'share' | 'balance', date: string) => Promise<void>;
   transfer: (fundId: number, fromInvestorId: number, toInvestorId: number, amount: number, amountType: 'share' | 'balance', date: string) => Promise<void>;
@@ -169,13 +169,13 @@ export const useFundStore = create<FundStore>((set, get) => ({
     }
   },
 
-  addInvestor: async (fundId: number, name: string) => {
+  addInvestor: async (fundId: number, name: string, date?: string) => {
     set({ loading: true, error: null });
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const useDate = date || new Date().toISOString().split('T')[0];
       const response = await request<ApiResponse<Investor>>(`/funds/${fundId}/investors`, {
         method: 'POST',
-        body: JSON.stringify({ name, date: today }),
+        body: JSON.stringify({ name, date: useDate }),
       });
 
       if (response.code === 0) {

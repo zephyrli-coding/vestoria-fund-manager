@@ -21,6 +21,7 @@ export interface Fund {
   total_share: number;
   net_asset_value: number;
   balance: number;
+  investor_count?: number;
   created_at: string;
   updated_at: string;
 }

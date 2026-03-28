@@ -38,6 +38,7 @@ class FundResponse(BaseModel):
     total_share: float = Field(..., description="Total shares")
     net_asset_value: float = Field(..., description="Net asset value (NAV)")
     balance: float = Field(..., description="Total balance")
+    investor_count: int = Field(default=0, description="Number of investors")
     created_at: datetime = Field(..., description="Creation time")
     updated_at: datetime = Field(..., description="Last update time")
 
