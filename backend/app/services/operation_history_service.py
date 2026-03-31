@@ -101,6 +101,10 @@ class OperationHistoryService:
                 "operation_date": op.operation_date,
             }
 
+            # For add_investor, export the creation date
+            if op.operation_type == "add_investor":
+                record["creation_date"] = op.operation_date
+
             # Add investor name if applicable
             if op.investor_id and op.investor:
                 record["investor_name"] = op.investor.name
@@ -295,6 +299,8 @@ class OperationHistoryService:
 
         if op_type == "add_investor":
             name = op.get("investor_name")
+            # Use creation_date if available (from export), otherwise use operation_date
+            creation_date = op.get("creation_date") or op.get("operation_date") or op_date
             if not name:
                 raise ValueError("investor_name is required for add_investor")
             
@@ -303,7 +309,7 @@ class OperationHistoryService:
                 # Investor already exists, skip
                 return
             
-            result = investor_service.add_investor(fund_id, name, op_date)
+            result = investor_service.add_investor(fund_id, name, creation_date)
             investor_map[name] = result.id
 
         elif op_type == "invest":

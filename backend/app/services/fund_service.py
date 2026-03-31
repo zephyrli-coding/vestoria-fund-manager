@@ -32,7 +32,15 @@ class FundService:
 
     def list_funds(self, skip: int = 0, limit: int = 20, tag: str = None) -> Dict[str, any]:
         """List all funds with pagination and optional tag filter."""
+        from app.models.investor import Investor
+        
         funds = self.fund_repo.get_all(skip=skip, limit=limit, tag=tag)
+        
+        # Calculate investor count for each fund
+        for fund in funds:
+            investor_count = self.db.query(Investor).filter(Investor.fund_id == fund.id).count()
+            fund.investor_count = investor_count
+        
         total = self.fund_repo.count()
         return {
             "items": funds,

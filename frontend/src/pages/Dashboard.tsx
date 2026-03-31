@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
@@ -200,6 +200,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   useDocumentTitle('Vestoria - 仪表盘');
   const { funds, loading, fetchFunds } = useFundStore();
+  const [selectedTag, setSelectedTag] = useState('');
   const [recentOperations] = useState<Operation[]>([
     {
       id: 1,
@@ -264,9 +265,30 @@ export default function Dashboard() {
     fetchFunds();
   }, [fetchFunds]);
 
-  // Calculate totals
-  const totalBalanceCNY = funds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance * 6.9 : f.balance), 0);
-  const totalBalanceUSD = funds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance : f.balance / 6.9), 0);
+  // Extract all unique tags (from all funds, before filtering)
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    funds.forEach((fund) => {
+      if (fund.tags) {
+        fund.tags.split(',').forEach((tag) => {
+          const trimmed = tag.trim();
+          if (trimmed) tagsSet.add(trimmed);
+        });
+      }
+    });
+    return Array.from(tagsSet).sort();
+  }, [funds]);
+
+  // Filter funds by selected tag
+  const filteredFunds = useMemo(() => {
+    if (!selectedTag) return funds;
+    return funds.filter((f) => f.tags && f.tags.split(',').map((t) => t.trim()).includes(selectedTag));
+  }, [funds, selectedTag]);
+
+  // Calculate totals from filtered funds
+  const totalBalanceCNY = filteredFunds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance * 6.9 : f.balance), 0);
+  const totalBalanceUSD = filteredFunds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance : f.balance / 6.9), 0);
+  const totalInvestorCount = filteredFunds.reduce((sum, f) => sum + (f.investor_count || 0), 0);
 
   const getOperationIcon = (type: string) => {
     switch (type) {
@@ -340,6 +362,56 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Tag Filter */}
+      {allTags.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              onClick={() => setSelectedTag('')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '20px',
+                border: 'none',
+                background: selectedTag === '' ? 'var(--primary-color)' : 'var(--bg-secondary)',
+                color: selectedTag === '' ? 'white' : 'var(--text-secondary)',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              全部
+            </button>
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setSelectedTag(tag)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  background: selectedTag === tag ? 'var(--primary-color)' : 'var(--bg-secondary)',
+                  color: selectedTag === tag ? 'white' : 'var(--text-secondary)',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div
         style={{
@@ -412,13 +484,13 @@ export default function Dashboard() {
 
         <StatCard
           title="基金数量"
-          value={funds.length.toString()}
+          value={filteredFunds.length.toString()}
           icon={Activity}
           color="#f59e0b"
         />
         <StatCard
           title="投资者数"
-          value="12"
+          value={totalInvestorCount.toString()}
           icon={Users}
           color="#3b82f6"
         />
@@ -505,7 +577,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {funds.slice(0, 4).map((fund) => (
+              {filteredFunds.slice(0, 4).map((fund) => (
                 <FundCard key={fund.id} fund={fund} />
               ))}
             </div>

@@ -54,6 +54,7 @@ export default function FundDetail() {
   // Modal states
   const [showAddInvestorModal, setShowAddInvestorModal] = useState(false);
   const [newInvestorName, setNewInvestorName] = useState('');
+  const [newInvestorDate, setNewInvestorDate] = useState(new Date().toISOString().split('T')[0]);
   const [adding, setAdding] = useState(false);
   const [investorSearchQuery, setInvestorSearchQuery] = useState('');
 
@@ -175,9 +176,10 @@ export default function FundDetail() {
 
     setAdding(true);
     try {
-      await addInvestor(parseInt(id), newInvestorName.trim());
+      await addInvestor(parseInt(id), newInvestorName.trim(), newInvestorDate);
       setShowAddInvestorModal(false);
       setNewInvestorName('');
+      setNewInvestorDate(new Date().toISOString().split('T')[0]);
       await loadInvestors();
     } catch (error) {
       console.error('Failed to add investor:', error);
@@ -848,7 +850,7 @@ export default function FundDetail() {
                                     {investor.name}
                                   </p>
                                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                                    加入时间: {new Date(investor.created_at).toLocaleDateString('zh-CN')}
+                                    加入时间: {new Date(investor.creation_date || investor.created_at).toLocaleDateString('zh-CN')}
                                   </p>
                                 </div>
                               </div>
@@ -1153,6 +1155,48 @@ export default function FundDetail() {
                     }}
                     required
                     autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* 创建日期 */}
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  创建日期 *
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <Calendar size={20} color="var(--text-muted)" />
+                  <input
+                    type="date"
+                    value={newInvestorDate}
+                    onChange={(e) => setNewInvestorDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontSize: '15px',
+                      color: 'var(--text-primary)',
+                    }}
+                    required
                   />
                 </div>
               </div>
