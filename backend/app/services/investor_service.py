@@ -1,6 +1,5 @@
-"""Investor business logic service."""
-from typing import Optional, List, Dict
 from datetime import datetime
+from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
 from app.models.fund import Fund
 from app.models.investor import Investor
@@ -53,10 +52,33 @@ class InvestorService:
             return None
         return investor
 
+    def _get_investor_creation_date(self, fund_id: int, investor_id: int) -> Optional[datetime]:
+        """Get investor's creation date from operation history."""
+        operation = self.operation_repo.get_by_fund(
+            fund_id=fund_id,
+            investor_id=investor_id,
+            operation_type="add_investor",
+            limit=1
+        )
+        if operation and len(operation) > 0:
+            # Parse operation_date string to datetime
+            try:
+                return datetime.strptime(operation[0].operation_date, '%Y-%m-%d')
+            except (ValueError, AttributeError):
+                return None
+        return None
+
     def list_investors(self, fund_id: int, skip: int = 0, limit: int = 20) -> Dict[str, any]:
-        """List all investors in a fund."""
+        """List all investors in a fund with creation date from operation history."""
         investors = self.investor_repo.get_by_fund(fund_id, skip=skip, limit=limit)
         total = self.investor_repo.count_by_fund(fund_id)
+        
+        # Enrich investors with creation_date from operation history
+        for investor in investors:
+            creation_date = self._get_investor_creation_date(fund_id, investor.id)
+            if creation_date:
+                investor.creation_date = creation_date
+        
         return {
             "items": investors,
             "total": total,

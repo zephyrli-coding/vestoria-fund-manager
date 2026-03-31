@@ -850,7 +850,7 @@ export default function FundDetail() {
                                     {investor.name}
                                   </p>
                                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                                    加入时间: {new Date(investor.created_at).toLocaleDateString('zh-CN')}
+                                    加入时间: {new Date(investor.creation_date || investor.created_at).toLocaleDateString('zh-CN')}
                                   </p>
                                 </div>
                               </div>

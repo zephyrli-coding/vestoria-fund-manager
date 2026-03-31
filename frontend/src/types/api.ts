@@ -48,6 +48,7 @@ export interface Investor {
   balance: number;
   total_invested: number;
   total_redeemed: number;
+  creation_date?: string;
   created_at: string;
 }
 
