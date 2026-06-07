@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import engine, Base
-from app.api import auth, funds, investors
+from app.api import auth, funds, investors, operations
 
 settings = get_settings()
 
@@ -27,6 +27,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["Authentication"])
 app.include_router(funds.router, prefix=f"{settings.API_V1_PREFIX}/funds", tags=["Funds"])
 app.include_router(investors.router, prefix=f"{settings.API_V1_PREFIX}/funds/{{fund_id}}/investors", tags=["Investors"])
+app.include_router(operations.router, prefix=f"{settings.API_V1_PREFIX}/operations", tags=["Operations"])
 
 
 @app.on_event("startup")
