@@ -109,106 +109,6 @@ function StatCard({ title, value, change, changePositive, icon: Icon, color }: S
   );
 }
 
-interface FundCardProps {
-  fund: Fund;
-}
-
-function FundCard({ fund }: FundCardProps) {
-  const navigate = useNavigate();
-
-  return (
-    <div
-      onClick={() => navigate(`/funds/${fund.id}`)}
-      style={{
-        background: 'var(--bg-primary)',
-        borderRadius: '16px',
-        padding: '20px',
-        border: '1px solid var(--border-color)',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-      }}
-      className="hover-lift"
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Purple box with first character */}
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '20px',
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
-          >
-            {Array.from(fund.name)[0] || '?'}
-          </div>
-          <div>
-            <h4
-              style={{
-                fontSize: '16px',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                margin: 0,
-                marginBottom: '4px',
-              }}
-            >
-              {Array.from(fund.name).slice(1).join('') || fund.name}
-            </h4>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-              成立时间: {fund.start_date}
-            </p>
-          </div>
-        </div>
-        <div
-          style={{
-            padding: '6px 12px',
-            borderRadius: '20px',
-            background:
-              fund.net_asset_value >= 1
-                ? 'rgba(34, 197, 94, 0.1)'
-                : 'rgba(245, 158, 11, 0.1)',
-            color:
-              fund.net_asset_value >= 1 ? 'var(--success-color)' : 'var(--warning-color)',
-            fontSize: '13px',
-            fontWeight: 600,
-          }}
-        >
-          NAV {fund.net_asset_value.toFixed(4)}
-        </div>
-      </div>
-
-      <div
-        style={{
-          marginTop: '20px',
-          paddingTop: '16px',
-          borderTop: '1px solid var(--border-color)',
-        }}
-      >
-        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
-          总资产
-        </p>
-        <p
-          style={{
-            fontSize: '18px',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            margin: 0,
-          }}
-        >
-          ¥ {Math.floor(fund.balance).toLocaleString('zh-CN')}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
   useDocumentTitle('Vestoria - 仪表盘');
@@ -216,7 +116,9 @@ export default function Dashboard() {
   const [selectedTag, setSelectedTag] = useState('');
   const [recentOperations, setRecentOperations] = useState<Operation[]>([]);
   const [opsLoading, setOpsLoading] = useState(false);
-  const [tagChartData, setTagChartData] = useState<ChartData[]>([]);
+  const [tagChartDataCNY, setTagChartDataCNY] = useState<ChartData[]>([]);
+  const [tagChartDataUSD, setTagChartDataUSD] = useState<ChartData[]>([]);
+  const [chartCurrency, setChartCurrency] = useState<'CNY' | 'USD'>('CNY');
   const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
@@ -244,16 +146,22 @@ export default function Dashboard() {
       setChartLoading(true);
       try {
         const data = await fetchTagChartData(selectedTag || undefined);
-        setTagChartData(data?.balance || []);
+        setTagChartDataCNY(data?.balance || []);
+        // @ts-ignore — backend returns balance_usd but type doesn't include it yet
+        setTagChartDataUSD(data?.balance_usd || []);
       } catch (error) {
         console.error('Failed to load chart data:', error);
-        setTagChartData([]);
+        setTagChartDataCNY([]);
+        setTagChartDataUSD([]);
       } finally {
         setChartLoading(false);
       }
     };
     loadChart();
   }, [fetchTagChartData, selectedTag]);
+
+  const currentChartData = chartCurrency === 'CNY' ? tagChartDataCNY : tagChartDataUSD;
+  const currencySymbol = chartCurrency === 'CNY' ? '¥' : '$';
 
   // Extract all unique tags (from all funds, before filtering)
   const allTags = useMemo(() => {
@@ -498,7 +406,7 @@ export default function Dashboard() {
       </div>
 
       {/* Aggregate Balance Chart */}
-      {tagChartData.length > 1 && (
+      {currentChartData.length > 1 && (
         <div
           style={{
             background: 'var(--bg-primary)',
@@ -526,12 +434,31 @@ export default function Dashboard() {
             >
               {selectedTag ? `#${selectedTag} 总资产走势` : '总资产走势'}
             </h3>
-            <DollarSign size={18} color="var(--text-muted)" />
+            <button
+              onClick={() => setChartCurrency((c) => (c === 'CNY' ? 'USD' : 'CNY'))}
+              title={`切换为 ${chartCurrency === 'CNY' ? 'USD' : 'CNY'}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-secondary)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <DollarSign size={14} />
+              {chartCurrency}
+            </button>
           </div>
 
           <div style={{ width: '100%', height: '260px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={tagChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <AreaChart data={currentChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -564,7 +491,10 @@ export default function Dashboard() {
                     fontSize: '13px',
                   }}
                   labelStyle={{ color: 'var(--text-secondary)' }}
-                  formatter={(value: number) => [`¥${Math.floor(value).toLocaleString('zh-CN')}`, '总资产']}
+                  formatter={(value: number) => [
+                    `${currencySymbol}${Math.floor(value).toLocaleString('zh-CN')}`,
+                    '总资产'
+                  ]}
                 />
                 <Area
                   type="monotone"
@@ -661,10 +591,137 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {filteredFunds.slice(0, 4).map((fund) => (
-                <FundCard key={fund.id} fund={fund} />
-              ))}
+            <div
+              style={{
+                background: 'var(--bg-primary)',
+                borderRadius: '16px',
+                border: '1px solid var(--border-color)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {filteredFunds.map((fund, index) => {
+                  const navColor = fund.net_asset_value >= 1
+                    ? { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e' }
+                    : { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b' };
+                  const tags = fund.tags
+                    ? fund.tags.split(',').map((t) => t.trim()).filter((t) => t)
+                    : [];
+                  return (
+                    <div
+                      key={fund.id}
+                      onClick={() => navigate(`/funds/${fund.id}`)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '14px 20px',
+                        cursor: 'pointer',
+                        borderBottom:
+                          index < filteredFunds.length - 1
+                            ? '1px solid var(--border-color)'
+                            : 'none',
+                        transition: 'background 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--bg-secondary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      {/* Icon */}
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {Array.from(fund.name)[0] || '?'}
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginBottom: '2px',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
+                            {fund.name}
+                          </span>
+                          {tags.map((tag) => (
+                            <span
+                              key={tag}
+                              style={{
+                                fontSize: '11px',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: 'rgba(99, 102, 241, 0.1)',
+                                color: '#6366f1',
+                                fontWeight: 500,
+                              }}
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          成立 {fund.start_date}
+                        </span>
+                      </div>
+
+                      {/* NAV badge */}
+                      <div
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '16px',
+                          background: navColor.bg,
+                          color: navColor.text,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          flexShrink: 0,
+                        }}
+                      >
+                        NAV {fund.net_asset_value.toFixed(4)}
+                      </div>
+
+                      {/* Balance */}
+                      <div style={{ textAlign: 'right', flexShrink: 0, minWidth: '100px' }}>
+                        <p
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            margin: 0,
+                          }}
+                        >
+                          {fund.currency === 'USD' ? '$' : '¥'}
+                          {Math.floor(fund.balance).toLocaleString('zh-CN')}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
