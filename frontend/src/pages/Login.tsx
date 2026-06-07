@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { TrendingUp, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 
 export default function Login() {
@@ -76,7 +76,7 @@ export default function Login() {
               border: '1px solid rgba(255, 255, 255, 0.2)',
             }}
           >
-            <img src="/strawberry-logo.png" alt="logo" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
+            <TrendingUp size={56} color="white" />
           </div>
 
           <h1
