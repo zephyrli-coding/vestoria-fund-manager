@@ -2,6 +2,17 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from 'recharts';
+import {
   TrendingUp,
   TrendingDown,
   Wallet,
@@ -15,7 +26,7 @@ import {
   ArrowRightLeft,
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
-import type { Fund, Operation } from '@/types/api';
+import type { Fund, Operation, ChartData } from '@/types/api';
 
 interface StatCardProps {
   title: string;
@@ -201,10 +212,12 @@ function FundCard({ fund }: FundCardProps) {
 export default function Dashboard() {
   const navigate = useNavigate();
   useDocumentTitle('Vestoria - 仪表盘');
-  const { funds, loading, fetchFunds, fetchRecentOperations } = useFundStore();
+  const { funds, loading, fetchFunds, fetchRecentOperations, fetchTagChartData } = useFundStore();
   const [selectedTag, setSelectedTag] = useState('');
   const [recentOperations, setRecentOperations] = useState<Operation[]>([]);
   const [opsLoading, setOpsLoading] = useState(false);
+  const [tagChartData, setTagChartData] = useState<ChartData[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
     fetchFunds();
@@ -224,6 +237,23 @@ export default function Dashboard() {
     };
     loadOps();
   }, [fetchRecentOperations]);
+
+  // Load aggregate chart data when tag changes
+  useEffect(() => {
+    const loadChart = async () => {
+      setChartLoading(true);
+      try {
+        const data = await fetchTagChartData(selectedTag || undefined);
+        setTagChartData(data?.balance || []);
+      } catch (error) {
+        console.error('Failed to load chart data:', error);
+        setTagChartData([]);
+      } finally {
+        setChartLoading(false);
+      }
+    };
+    loadChart();
+  }, [fetchTagChartData, selectedTag]);
 
   // Extract all unique tags (from all funds, before filtering)
   const allTags = useMemo(() => {
@@ -249,6 +279,13 @@ export default function Dashboard() {
   const totalBalanceCNY = filteredFunds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance * 6.9 : f.balance), 0);
   const totalBalanceUSD = filteredFunds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance : f.balance / 6.9), 0);
   const totalInvestorCount = filteredFunds.reduce((sum, f) => sum + (f.investor_count || 0), 0);
+
+  // Fund name lookup for operations
+  const fundNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    funds.forEach((f) => map.set(f.id, f.name));
+    return map;
+  }, [funds]);
 
   const getOperationIcon = (type: string) => {
     switch (type) {
@@ -460,6 +497,90 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Aggregate Balance Chart */}
+      {tagChartData.length > 1 && (
+        <div
+          style={{
+            background: 'var(--bg-primary)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid var(--border-color)',
+            marginBottom: '32px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+            }}
+          >
+            <h3
+              style={{
+                fontSize: '18px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: 0,
+              }}
+            >
+              {selectedTag ? `#${selectedTag} 总资产走势` : '总资产走势'}
+            </h3>
+            <DollarSign size={18} color="var(--text-muted)" />
+          </div>
+
+          <div style={{ width: '100%', height: '260px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={tagChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+                  tickFormatter={(value: string) => value.slice(5)}
+                  axisLine={{ stroke: 'var(--border-color)' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+                  tickFormatter={(value: number) =>
+                    value >= 10000
+                      ? `${Math.floor(value / 10000)}万`
+                      : `${Math.floor(value)}`
+                  }
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                  }}
+                  labelStyle={{ color: 'var(--text-secondary)' }}
+                  formatter={(value: number) => [`¥${Math.floor(value).toLocaleString('zh-CN')}`, '总资产']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#6366f1"
+                  strokeWidth={2}
+                  fill="url(#balanceGradient)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: '#6366f1' }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Grid */}
       <div
         style={{
@@ -637,8 +758,14 @@ export default function Dashboard() {
                             fontSize: '12px',
                             color: 'var(--text-muted)',
                             margin: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
                           }}
+                          title={fundNameMap.get(op.fund_id || 0)}
                         >
+                          {fundNameMap.get(op.fund_id || 0) || ''}
+                          {fundNameMap.get(op.fund_id || 0) && ' · '}
                           {new Date(op.operation_date).toLocaleDateString('zh-CN')}
                         </p>
                       </div>

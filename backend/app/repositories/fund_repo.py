@@ -1,7 +1,7 @@
 """Fund repository for database operations."""
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func, case
 from app.models.fund import Fund, FundHistory
 from datetime import datetime
 
@@ -139,3 +139,54 @@ class FundRepository:
             query = query.filter(FundHistory.history_date <= end_date)
 
         return query.order_by(FundHistory.history_date).all()
+
+    def get_aggregated_chart_data(
+        self,
+        tag: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> List[dict]:
+        """Get aggregated chart data across all funds (or filtered by tag).
+
+        Returns daily aggregated balance (CNY converted), NAV (weighted avg), and total share.
+        """
+        # Build base query joining FundHistory with Fund
+        query = self.db.query(
+            FundHistory.history_date,
+            func.sum(
+                case(
+                    (Fund.currency == 'USD', FundHistory.balance * 6.9),
+                    else_=FundHistory.balance
+                )
+            ).label('total_balance_cny'),
+            func.sum(
+                case(
+                    (Fund.currency == 'USD', FundHistory.balance),
+                    else_=FundHistory.balance / 6.9
+                )
+            ).label('total_balance_usd'),
+            func.sum(FundHistory.total_share).label('total_share'),
+        ).join(Fund, FundHistory.fund_id == Fund.id)
+
+        # Apply tag filter if provided
+        if tag:
+            query = query.filter(Fund.tags.like(f'%{tag}%'))
+
+        # Apply date filters
+        if start_date:
+            query = query.filter(FundHistory.history_date >= start_date)
+        if end_date:
+            query = query.filter(FundHistory.history_date <= end_date)
+
+        # Group by date and order
+        results = query.group_by(FundHistory.history_date).order_by(FundHistory.history_date).all()
+
+        return [
+            {
+                "date": r.history_date,
+                "balance_cny": float(r.total_balance_cny or 0),
+                "balance_usd": float(r.total_balance_usd or 0),
+                "total_share": float(r.total_share or 0),
+            }
+            for r in results
+        ]
