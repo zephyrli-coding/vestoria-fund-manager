@@ -8,7 +8,8 @@ import {
   Menu,
   X,
   ChevronRight,
-  Bell
+  Bell,
+  TrendingUp
 } from 'lucide-react';
 
 const menuItems = [
@@ -64,7 +65,20 @@ export default function MainLayout() {
       >
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '16px' }}>
-          <img src="/strawberry-logo.png" alt="logo" style={{ width: '40px', height: '40px', objectFit: 'contain', flexShrink: 0 }} />
+          <div
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <TrendingUp size={22} color="white" />
+          </div>
           <div>
             <div
               style={{
