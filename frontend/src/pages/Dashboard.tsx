@@ -520,7 +520,14 @@ export default function Dashboard() {
         }}
       >
         {/* Left Column - Funds */}
-        <div>
+        <div
+          style={{
+            background: 'var(--bg-primary)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid var(--border-color)',
+          }}
+        >
           <div
             style={{
               display: 'flex',
@@ -531,13 +538,13 @@ export default function Dashboard() {
           >
             <h2
               style={{
-                fontSize: '20px',
+                fontSize: '18px',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0,
               }}
             >
-              我的基金
+              基金列表
             </h2>
             <Link
               to="/funds"
@@ -557,17 +564,14 @@ export default function Dashboard() {
           </div>
 
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
               加载中...
             </div>
           ) : funds.length === 0 ? (
             <div
               style={{
-                background: 'var(--bg-primary)',
-                borderRadius: '16px',
-                padding: '60px',
+                padding: '40px',
                 textAlign: 'center',
-                border: '1px solid var(--border-color)',
               }}
             >
               <Wallet size={48} color="var(--text-muted)" style={{ marginBottom: '16px' }} />
@@ -591,137 +595,126 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
-            <div
-              style={{
-                background: 'var(--bg-primary)',
-                borderRadius: '16px',
-                border: '1px solid var(--border-color)',
-                overflow: 'hidden',
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {filteredFunds.map((fund, index) => {
-                  const navColor = fund.net_asset_value >= 1
-                    ? { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e' }
-                    : { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b' };
-                  const tags = fund.tags
-                    ? fund.tags.split(',').map((t) => t.trim()).filter((t) => t)
-                    : [];
-                  return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {filteredFunds.map((fund) => {
+                const navColor = fund.net_asset_value >= 1
+                  ? { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e' }
+                  : { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b' };
+                const tags = fund.tags
+                  ? fund.tags.split(',').map((t) => t.trim()).filter((t) => t)
+                  : [];
+                return (
+                  <div
+                    key={fund.id}
+                    onClick={() => navigate(`/funds/${fund.id}`)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '14px 16px',
+                      cursor: 'pointer',
+                      borderRadius: '12px',
+                      background: 'var(--bg-secondary)',
+                      transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--bg-hover)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--bg-secondary)';
+                    }}
+                  >
+                    {/* Icon */}
                     <div
-                      key={fund.id}
-                      onClick={() => navigate(`/funds/${fund.id}`)}
                       style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '12px',
-                        padding: '14px 20px',
-                        cursor: 'pointer',
-                        borderBottom:
-                          index < filteredFunds.length - 1
-                            ? '1px solid var(--border-color)'
-                            : 'none',
-                        transition: 'background 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'var(--bg-secondary)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: '16px',
+                        fontWeight: 600,
+                        flexShrink: 0,
                       }}
                     >
-                      {/* Icon */}
+                      {Array.from(fund.name)[0] || '?'}
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div
                         style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '10px',
-                          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontSize: '16px',
-                          fontWeight: 600,
-                          flexShrink: 0,
+                          gap: '8px',
+                          marginBottom: '2px',
                         }}
                       >
-                        {Array.from(fund.name)[0] || '?'}
-                      </div>
-
-                      {/* Info */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            marginBottom: '2px',
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 600,
-                              color: 'var(--text-primary)',
-                            }}
-                          >
-                            {fund.name}
-                          </span>
-                          {tags.map((tag) => (
-                            <span
-                              key={tag}
-                              style={{
-                                fontSize: '11px',
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                background: 'rgba(99, 102, 241, 0.1)',
-                                color: '#6366f1',
-                                fontWeight: 500,
-                              }}
-                            >
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                          成立 {fund.start_date}
-                        </span>
-                      </div>
-
-                      {/* NAV badge */}
-                      <div
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: '16px',
-                          background: navColor.bg,
-                          color: navColor.text,
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          flexShrink: 0,
-                        }}
-                      >
-                        NAV {fund.net_asset_value.toFixed(4)}
-                      </div>
-
-                      {/* Balance */}
-                      <div style={{ textAlign: 'right', flexShrink: 0, minWidth: '100px' }}>
-                        <p
+                        <span
                           style={{
                             fontSize: '14px',
-                            fontWeight: 700,
+                            fontWeight: 600,
                             color: 'var(--text-primary)',
-                            margin: 0,
                           }}
                         >
-                          {fund.currency === 'USD' ? '$' : '¥'}
-                          {Math.floor(fund.balance).toLocaleString('zh-CN')}
-                        </p>
+                          {fund.name}
+                        </span>
+                        {tags.map((tag) => (
+                          <span
+                            key={tag}
+                            style={{
+                              fontSize: '11px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(99, 102, 241, 0.1)',
+                              color: '#6366f1',
+                              fontWeight: 500,
+                            }}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
                       </div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        成立 {fund.start_date}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* NAV badge */}
+                    <div
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '16px',
+                        background: navColor.bg,
+                        color: navColor.text,
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                    >
+                      NAV {fund.net_asset_value.toFixed(4)}
+                    </div>
+
+                    {/* Balance */}
+                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: '100px' }}>
+                      <p
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          margin: 0,
+                        }}
+                      >
+                        {fund.currency === 'USD' ? '$' : '¥'}
+                        {Math.floor(fund.balance).toLocaleString('zh-CN')}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
