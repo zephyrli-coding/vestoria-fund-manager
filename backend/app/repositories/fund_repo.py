@@ -148,45 +148,84 @@ class FundRepository:
     ) -> List[dict]:
         """Get aggregated chart data across all funds (or filtered by tag).
 
-        Returns daily aggregated balance (CNY converted), NAV (weighted avg), and total share.
+        Uses forward-fill logic: if a fund has no history record for a given date,
+        its last known balance is carried forward. This prevents jumps in the
+        aggregate chart caused by sparse per-fund history records.
         """
-        # Build base query joining FundHistory with Fund
-        query = self.db.query(
-            FundHistory.history_date,
-            func.sum(
-                case(
-                    (Fund.currency == 'USD', FundHistory.balance * 6.9),
-                    else_=FundHistory.balance
-                )
-            ).label('total_balance_cny'),
-            func.sum(
-                case(
-                    (Fund.currency == 'USD', FundHistory.balance),
-                    else_=FundHistory.balance / 6.9
-                )
-            ).label('total_balance_usd'),
-            func.sum(FundHistory.total_share).label('total_share'),
-        ).join(Fund, FundHistory.fund_id == Fund.id)
+        from collections import defaultdict
 
-        # Apply tag filter if provided
+        # 1. Get funds matching the tag filter
+        funds_query = self.db.query(Fund)
         if tag:
-            query = query.filter(Fund.tags.like(f'%{tag}%'))
+            funds_query = funds_query.filter(Fund.tags.like(f'%{tag}%'))
+        funds = funds_query.all()
 
-        # Apply date filters
+        if not funds:
+            return []
+
+        fund_ids = [f.id for f in funds]
+        fund_map = {f.id: f for f in funds}
+
+        # 2. Get all history records for these funds
+        hist_query = self.db.query(FundHistory).filter(
+            FundHistory.fund_id.in_(fund_ids)
+        )
         if start_date:
-            query = query.filter(FundHistory.history_date >= start_date)
+            hist_query = hist_query.filter(FundHistory.history_date >= start_date)
         if end_date:
-            query = query.filter(FundHistory.history_date <= end_date)
+            hist_query = hist_query.filter(FundHistory.history_date <= end_date)
 
-        # Group by date and order
-        results = query.group_by(FundHistory.history_date).order_by(FundHistory.history_date).all()
+        histories = hist_query.order_by(FundHistory.fund_id, FundHistory.history_date).all()
 
-        return [
-            {
-                "date": r.history_date,
-                "balance_cny": float(r.total_balance_cny or 0),
-                "balance_usd": float(r.total_balance_usd or 0),
-                "total_share": float(r.total_share or 0),
-            }
-            for r in results
-        ]
+        if not histories:
+            return []
+
+        # 3. Build per-fund history lookup and find all dates
+        fund_histories: dict[int, list[FundHistory]] = defaultdict(list)
+        for h in histories:
+            fund_histories[h.fund_id].append(h)
+
+        all_dates = sorted({h.history_date for h in histories})
+
+        # 4. Forward-fill: for each fund, compute balance for every date
+        #    fund_id -> {date -> balance_in_cny}
+        fund_balance_by_date: dict[int, dict[str, float]] = {}
+
+        for fund_id, fh_list in fund_histories.items():
+            fund = fund_map[fund_id]
+            # Convert raw balance to CNY upfront
+            rate = 6.9 if fund.currency == 'USD' else 1.0
+
+            # Build date -> raw_balance lookup for this fund's explicit records
+            explicit: dict[str, float] = {}
+            for h in fh_list:
+                explicit[h.history_date] = h.balance * rate
+
+            # Forward-fill across all_dates
+            filled: dict[str, float] = {}
+            last_balance = 0.0
+            for date in all_dates:
+                if date in explicit:
+                    last_balance = explicit[date]
+                filled[date] = last_balance
+
+            fund_balance_by_date[fund_id] = filled
+
+        # 5. Also handle funds that have ZERO history records
+        #    (they contribute 0 on every date)
+        for fund in funds:
+            if fund.id not in fund_balance_by_date:
+                fund_balance_by_date[fund.id] = {d: 0.0 for d in all_dates}
+
+        # 6. Aggregate by date
+        results = []
+        for date in all_dates:
+            total_cny = sum(fund_balance_by_date[f.id][date] for f in funds)
+            results.append({
+                "date": date,
+                "balance_cny": total_cny,
+                "balance_usd": total_cny / 6.9,
+                "total_share": 0.0,
+            })
+
+        return results
