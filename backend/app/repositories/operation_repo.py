@@ -62,3 +62,7 @@ class OperationRepository:
             query = query.filter(Operation.investor_id == investor_id)
 
         return query.count()
+
+    def get_recent(self, limit: int = 10) -> List[Operation]:
+        """Get recent operations across all funds."""
+        return self.db.query(Operation).order_by(desc(Operation.created_at)).limit(limit).all()

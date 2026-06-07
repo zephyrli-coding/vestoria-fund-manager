@@ -14,6 +14,8 @@ interface FundActions {
   fetchFundById: (id: number) => Promise<Fund | null>;
   fetchInvestors: (fundId: number) => Promise<Investor[]>;
   fetchOperations: (fundId: number, page?: number, pageSize?: number) => Promise<Operation[]>;
+  fetchInvestorOperations: (fundId: number, investorId: number, page?: number, pageSize?: number) => Promise<Operation[]>;
+  fetchRecentOperations: (limit?: number) => Promise<Operation[]>;
   fetchChartData: (fundId: number, startDate?: string, endDate?: string) => Promise<FundChartData | null>;
   addInvestor: (fundId: number, name: string) => Promise<void>;
   invest: (fundId: number, investorId: number, amount: number, date: string) => Promise<void>;
@@ -133,6 +135,46 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to fetch operations' });
+      return [];
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchInvestorOperations: async (fundId: number, investorId: number, page: number = 1, pageSize: number = 50) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await request<PaginatedResponse<Operation>>(
+        `/funds/${fundId}/investors/${investorId}/operations?page=${page}&page_size=${pageSize}`
+      );
+
+      if (response.code === 0) {
+        return response.data.items;
+      } else {
+        set({ error: response.message || 'Failed to fetch investor operations' });
+        return [];
+      }
+    } catch (error: any) {
+      set({ error: error.message || 'Failed to fetch investor operations' });
+      return [];
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchRecentOperations: async (limit: number = 10) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await request<PaginatedResponse<Operation>>(`/operations/recent?limit=${limit}`);
+
+      if (response.code === 0) {
+        return response.data.items;
+      } else {
+        set({ error: response.message || 'Failed to fetch recent operations' });
+        return [];
+      }
+    } catch (error: any) {
+      set({ error: error.message || 'Failed to fetch recent operations' });
       return [];
     } finally {
       set({ loading: false });
