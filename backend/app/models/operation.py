@@ -1,4 +1,5 @@
 """Operation model."""
+from typing import Optional
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -33,3 +34,15 @@ class Operation(Base):
     investor = relationship("Investor", foreign_keys=[investor_id])
     transfer_from = relationship("Investor", foreign_keys=[transfer_from_id])
     transfer_to = relationship("Investor", foreign_keys=[transfer_to_id])
+
+    @property
+    def investor_name(self) -> Optional[str]:
+        return self.investor.name if self.investor else None
+
+    @property
+    def transfer_from_name(self) -> Optional[str]:
+        return self.transfer_from.name if self.transfer_from else None
+
+    @property
+    def transfer_to_name(self) -> Optional[str]:
+        return self.transfer_to.name if self.transfer_to else None

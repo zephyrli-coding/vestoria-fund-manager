@@ -1,6 +1,7 @@
 // API 基础配置
-// 统一使用相对路径，通过 Vite 代理（开发）或 Nginx（生产）转发到后端
-export const API_BASE_URL = '/api/v1';
+// 开发环境直接连接后端，生产环境通过 Nginx 转发
+const isDev = import.meta.env?.DEV ?? true;
+export const API_BASE_URL = isDev ? 'http://localhost:8000/api/v1' : '/api/v1';
 
 // 构建完整的 API URL
 export function apiUrl(path: string): string {
