@@ -86,6 +86,26 @@ export default function FundDetail() {
   const [navDate, setNavDate] = useState(new Date().toISOString().split('T')[0]);
   const [updatingNav, setUpdatingNav] = useState(false);
 
+  // Copy tooltip
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedText(label);
+      setTimeout(() => setCopiedText(null), 1500);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopiedText(label);
+      setTimeout(() => setCopiedText(null), 1500);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
@@ -300,6 +320,32 @@ export default function FundDetail() {
 
   return (
     <div className="animate-fade-in">
+      {/* Copy Toast */}
+      {copiedText && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            padding: '10px 20px',
+            borderRadius: '10px',
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            fontSize: '14px',
+            fontWeight: 500,
+            color: 'var(--success-color)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          ✅ {copiedText}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <Link
@@ -568,11 +614,12 @@ export default function FundDetail() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '2fr 1fr',
+                gridTemplateColumns: '1fr 1fr',
                 gap: '24px',
+                marginBottom: '24px',
               }}
             >
-              {/* 左侧：图表 */}
+              {/* 左侧：NAV 走势图 */}
               <div
                 style={{
                   background: 'var(--bg-secondary)',
@@ -646,41 +693,126 @@ export default function FundDetail() {
                 )}
               </div>
 
-              {/* 右侧：基本信息 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div
+              {/* 右侧：总资产走势图 */}
+              <div
+                style={{
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                }}
+              >
+                <h4
                   style={{
-                    padding: '20px',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    margin: '0 0 16px 0',
                   }}
                 >
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-                    基金 ID
-                  </p>
-                  <p
-                    style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+                  总资产走势
+                </h4>
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                      <XAxis
+                        dataKey="date"
+                        stroke="var(--text-muted)"
+                        fontSize={12}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                      />
+                      <YAxis
+                        stroke="var(--text-muted)"
+                        fontSize={12}
+                        tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'var(--bg-primary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                        }}
+                        formatter={(value: number) => [formatMoney(value, fund.currency), '总资产']}
+                        labelFormatter={(label) => new Date(label).toLocaleDateString('zh-CN')}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="balance"
+                        stroke="#22c55e"
+                        strokeWidth={2}
+                        dot={chartData.length > 10 ? false : { fill: '#22c55e', strokeWidth: 0, r: 4 }}
+                        activeDot={{ r: 6, stroke: '#22c55e', strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: '250px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: '14px',
+                    }}
                   >
-                    #{fund.id}
-                  </p>
-                </div>
+                    暂无历史数据
+                  </div>
+                )}
+              </div>
+            </div>
 
-                <div
-                  style={{
-                    padding: '20px',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '12px',
-                  }}
+            {/* 基本信息 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <div
+                style={{
+                  padding: '20px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '12px',
+                }}
+              >
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                  基金 ID
+                </p>
+                <p
+                  style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
                 >
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-                    创建时间
-                  </p>
-                  <p
-                    style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
-                  >
-                    {new Date(fund.created_at).toLocaleString('zh-CN')}
-                  </p>
-                </div>
+                  #{fund.id}
+                </p>
+              </div>
+
+              <div
+                style={{
+                  padding: '20px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '12px',
+                }}
+              >
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                  创建时间
+                </p>
+                <p
+                  style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+                >
+                  {new Date(fund.created_at).toLocaleString('zh-CN')}
+                </p>
+              </div>
+
+              <div
+                style={{
+                  padding: '20px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '12px',
+                }}
+              >
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                  币种
+                </p>
+                <p
+                  style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+                >
+                  {fund.currency === 'USD' ? '美元 (USD)' : '人民币 (CNY)'}
+                </p>
               </div>
             </div>
           </div>
@@ -799,6 +931,9 @@ export default function FundDetail() {
                       <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         累计收益 ({fund?.currency === 'USD' ? '$' : '¥'})
                       </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        收益率
+                      </th>
                       <th style={{ padding: '16px 20px', textAlign: 'center', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         操作
                       </th>
@@ -855,12 +990,26 @@ export default function FundDetail() {
                                 </div>
                               </div>
                             </td>
-                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                            <td
+                              style={{ padding: '20px', textAlign: 'right', cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(investor.share.toString(), '份额已复制');
+                              }}
+                              title="点击复制份额"
+                            >
                               <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
                                 {Math.floor(investor.share).toLocaleString()}
                               </p>
                             </td>
-                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                            <td
+                              style={{ padding: '20px', textAlign: 'right', cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(investor.balance.toFixed(2), '资产价值已复制');
+                              }}
+                              title="点击复制资产价值"
+                            >
                               <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
                                 {Math.floor(investor.balance).toLocaleString()}
                               </p>
@@ -869,6 +1018,17 @@ export default function FundDetail() {
                               <p style={{ fontSize: '15px', fontWeight: 600, color: returnPositive ? '#22c55e' : '#ef4444', margin: 0 }}>
                                 {returnPositive ? '+' : ''}{Math.floor(totalReturn).toLocaleString()}
                               </p>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                              {(() => {
+                                const returnRate = investor.total_invested > 0 ? (totalReturn / investor.total_invested) * 100 : 0;
+                                const ratePositive = returnRate >= 0;
+                                return (
+                                  <p style={{ fontSize: '15px', fontWeight: 600, color: ratePositive ? '#22c55e' : '#ef4444', margin: 0 }}>
+                                    {ratePositive ? '+' : ''}{returnRate.toFixed(2)}%
+                                  </p>
+                                );
+                              })()}
                             </td>
                             <td style={{ padding: '20px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
