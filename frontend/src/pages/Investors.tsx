@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   ArrowLeft,
   Plus,
@@ -18,6 +19,7 @@ import { useFundStore } from '@/stores/fund';
 import type { Investor, Fund } from '@/types/api';
 
 export default function Investors() {
+  useDocumentTitle('Vestoria - 投资者');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { fetchFundById, fetchInvestors, addInvestor, investors, currentFund, loading: storeLoading } = useFundStore();
@@ -290,7 +292,7 @@ export default function Investors() {
                       fontWeight: 600,
                     }}
                   >
-                    {investor.name.charAt(0)}
+                    {Array.from(investor.name)[0] || '?'}
                   </div>
                   <div>
                     <h3

@@ -1,6 +1,5 @@
-"""Investor business logic service."""
-from typing import Optional, List, Dict
 from datetime import datetime
+from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
 from app.models.fund import Fund
 from app.models.investor import Investor
@@ -53,10 +52,33 @@ class InvestorService:
             return None
         return investor
 
+    def _get_investor_creation_date(self, fund_id: int, investor_id: int) -> Optional[datetime]:
+        """Get investor's creation date from operation history."""
+        operation = self.operation_repo.get_by_fund(
+            fund_id=fund_id,
+            investor_id=investor_id,
+            operation_type="add_investor",
+            limit=1
+        )
+        if operation and len(operation) > 0:
+            # Parse operation_date string to datetime
+            try:
+                return datetime.strptime(operation[0].operation_date, '%Y-%m-%d')
+            except (ValueError, AttributeError):
+                return None
+        return None
+
     def list_investors(self, fund_id: int, skip: int = 0, limit: int = 20) -> Dict[str, any]:
-        """List all investors in a fund."""
+        """List all investors in a fund with creation date from operation history."""
         investors = self.investor_repo.get_by_fund(fund_id, skip=skip, limit=limit)
         total = self.investor_repo.count_by_fund(fund_id)
+        
+        # Enrich investors with creation_date from operation history
+        for investor in investors:
+            creation_date = self._get_investor_creation_date(fund_id, investor.id)
+            if creation_date:
+                investor.creation_date = creation_date
+        
         return {
             "items": investors,
             "total": total,
@@ -77,7 +99,7 @@ class InvestorService:
 
         return self.investor_repo.update(investor, name=name)
 
-    def invest(self, fund_id: int, investor_id: int, amount: float, date: str) -> Dict[str, any]:
+    def invest(self, fund_id: int, investor_id: int, amount: float, date: str, use_nav: float = None) -> Dict[str, any]:
         """Investor invests in the fund."""
         # Get fund and investor
         fund = self.fund_repo.get_by_id(fund_id)
@@ -88,9 +110,12 @@ class InvestorService:
         if not investor:
             raise ValueError("Investor not found")
 
-        # Calculate shares
-        nav = fund.net_asset_value
-        share = round(amount / nav, 6) if fund.total_share != 0 else round(amount, 6)
+        # Calculate shares using provided NAV or current fund NAV
+        nav = use_nav if use_nav is not None else fund.net_asset_value
+        share = round(amount / nav, 6) if nav != 0 else round(amount, 6)
+        
+        # Get current fund NAV for balance calculations
+        current_nav = fund.net_asset_value
 
         # Update investor
         new_share = round(investor.share + share, 6)
@@ -98,13 +123,13 @@ class InvestorService:
         self.investor_repo.update_share(investor, new_share)
         investor.total_invested = new_total_invested
 
-        # Update fund total share and balance
+        # Update fund total share and balance (using current NAV)
         new_fund_total_share = round(fund.total_share + share, 6)
-        new_fund_balance = round(new_fund_total_share * nav, 6)
+        new_fund_balance = round(new_fund_total_share * current_nav, 6)
         self.fund_repo.update(fund, total_share=new_fund_total_share, balance=new_fund_balance)
 
-        # Update investor balance
-        investor.balance = round(new_share * nav, 6)
+        # Update investor balance (using current NAV)
+        investor.balance = round(new_share * current_nav, 6)
         self.db.commit()
 
         # Record operation
@@ -130,7 +155,7 @@ class InvestorService:
             "invested_amount": amount,
             "new_share": new_share,
             "fund_total_share": new_fund_total_share,
-            "fund_nav": nav
+            "fund_nav": current_nav
         }
 
     def redeem(
@@ -139,7 +164,8 @@ class InvestorService:
         investor_id: int,
         amount: float,
         amount_type: str,
-        date: str
+        date: str,
+        use_nav: float = None
     ) -> Dict[str, any]:
         """Investor redeems shares or balance."""
         # Get fund and investor
@@ -154,7 +180,8 @@ class InvestorService:
         if investor.share <= 0:
             raise ValueError("Investor has no shares to redeem")
 
-        nav = fund.net_asset_value
+        # Use provided NAV or current fund NAV
+        nav = use_nav if use_nav is not None else fund.net_asset_value
         investor_balance = investor.share * nav
 
         # Calculate redemption
@@ -219,7 +246,8 @@ class InvestorService:
         to_investor_id: int,
         amount: float,
         amount_type: str,
-        date: str
+        date: str,
+        use_nav: float = None
     ) -> Dict[str, any]:
         """Transfer shares between investors."""
         # Get fund
@@ -236,7 +264,8 @@ class InvestorService:
         if not to_investor:
             raise ValueError("Target investor not found")
 
-        nav = fund.net_asset_value
+        # Use provided NAV or current fund NAV
+        nav = use_nav if use_nav is not None else fund.net_asset_value
         from_balance = from_investor.share * nav
 
 
@@ -246,14 +275,18 @@ class InvestorService:
             raise ValueError("Transfer amount must be greater than 0")
 
         if amount_type == "share":
+            # Auto-adjust to max available if insufficient
             if from_investor.share < amount:
-                raise ValueError("Insufficient shares to transfer")
-            transfer_share = amount
+                transfer_share = from_investor.share
+            else:
+                transfer_share = amount
             transfer_balance = round(transfer_share * nav, 6)
         else:  # balance
+            # Auto-adjust to max available if insufficient
             if from_balance < amount:
-                raise ValueError("Insufficient balance to transfer")
-            transfer_balance = amount
+                transfer_balance = from_balance
+            else:
+                transfer_balance = amount
             transfer_share = round(transfer_balance / nav, 6)
 
         # Update investors

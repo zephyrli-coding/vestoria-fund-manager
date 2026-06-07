@@ -9,7 +9,6 @@ import {
   X,
   ChevronRight,
   Bell,
-  Search,
   TrendingUp
 } from 'lucide-react';
 
@@ -133,35 +132,8 @@ export default function MainLayout() {
           {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
 
-        {/* Search */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '8px 16px',
-            background: 'var(--bg-secondary)',
-            borderRadius: '8px',
-            border: '1px solid var(--border-color)',
-            flex: 1,
-            maxWidth: '400px',
-            marginRight: 'auto',
-          }}
-        >
-          <Search size={18} color="var(--text-muted)" />
-          <input
-            type="text"
-            placeholder="搜索基金、投资者..."
-            style={{
-              border: 'none',
-              background: 'transparent',
-              outline: 'none',
-              fontSize: '14px',
-              color: 'var(--text-primary)',
-              width: '100%',
-            }}
-          />
-        </div>
+        {/* Spacer to push right actions to the end */}
+        <div style={{ flex: 1 }} />
 
         {/* Right Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -178,7 +150,6 @@ export default function MainLayout() {
               justifyContent: 'center',
               cursor: 'pointer',
               color: 'var(--text-secondary)',
-              position: 'relative',
               transition: 'all 0.2s ease',
             }}
             onMouseEnter={(e) => {
@@ -191,17 +162,6 @@ export default function MainLayout() {
             }}
           >
             <Bell size={20} />
-            <span
-              style={{
-                position: 'absolute',
-                top: '6px',
-                right: '6px',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: 'var(--danger-color)',
-              }}
-            />
           </button>
 
           {/* User */}

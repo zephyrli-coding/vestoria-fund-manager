@@ -19,6 +19,9 @@ class Investor(Base):
     total_redeemed = Column(Float, nullable=False, default=0.0)  # 累计赎回
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Non-database attribute for storing creation date from operation history
+    creation_date = None
+
     # Relationships
     fund = relationship("Fund", back_populates="investors")
     return_snapshots = relationship("InvestorReturnSnapshot", back_populates="investor", cascade="all, delete-orphan")

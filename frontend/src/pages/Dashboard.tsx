@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   TrendingUp,
   TrendingDown,
@@ -9,9 +10,7 @@ import {
   ArrowRight,
   Plus,
   Calendar,
-  ArrowRightLeft,
-  PieChart,
-  Clock,
+  DollarSign,
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
 import type { Fund, Operation } from '@/types/api';
@@ -19,11 +18,13 @@ import type { Fund, Operation } from '@/types/api';
 interface StatCardProps {
   title: string;
   value: string;
+  change?: string;
+  changePositive?: boolean;
   icon: React.ElementType;
   color: string;
 }
 
-function StatCard({ title, value, icon: Icon, color }: StatCardProps) {
+function StatCard({ title, value, change, changePositive, icon: Icon, color }: StatCardProps) {
   return (
     <div
       style={{
@@ -58,6 +59,23 @@ function StatCard({ title, value, icon: Icon, color }: StatCardProps) {
           >
             {value}
           </h3>
+          {change && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginTop: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: changePositive ? 'var(--success-color)' : 'var(--danger-color)',
+              }}
+            >
+              {changePositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+              <span>{change}</span>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>较上月</span>
+            </div>
+          )}
         </div>
         <div
           style={{
@@ -99,21 +117,41 @@ function FundCard({ fund }: FundCardProps) {
       className="hover-lift"
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h4
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Purple box with first character */}
+          <div
             style={{
-              fontSize: '16px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '20px',
               fontWeight: 600,
-              color: 'var(--text-primary)',
-              margin: 0,
-              marginBottom: '4px',
+              flexShrink: 0,
             }}
           >
-            {fund.name}
-          </h4>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-            成立时间: {fund.start_date}
-          </p>
+            {Array.from(fund.name)[0] || '?'}
+          </div>
+          <div>
+            <h4
+              style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                margin: 0,
+                marginBottom: '4px',
+              }}
+            >
+              {Array.from(fund.name).slice(1).join('') || fund.name}
+            </h4>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+              成立时间: {fund.start_date}
+            </p>
+          </div>
         </div>
         <div
           style={{
@@ -135,44 +173,24 @@ function FundCard({ fund }: FundCardProps) {
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '16px',
           marginTop: '20px',
           paddingTop: '16px',
           borderTop: '1px solid var(--border-color)',
         }}
       >
-        <div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
-            总资产
-          </p>
-          <p
-            style={{
-              fontSize: '18px',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: 0,
-            }}
-          >
-            {fund.currency === 'USD' ? '$' : '¥'}{fund.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
-            总份额
-          </p>
-          <p
-            style={{
-              fontSize: '18px',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              margin: 0,
-            }}
-          >
-            {fund.total_share.toFixed(4)}
-          </p>
-        </div>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
+          总资产
+        </p>
+        <p
+          style={{
+            fontSize: '18px',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: 0,
+          }}
+        >
+          ¥ {Math.floor(fund.balance).toLocaleString('zh-CN')}
+        </p>
       </div>
     </div>
   );
@@ -180,55 +198,97 @@ function FundCard({ fund }: FundCardProps) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { funds, loading, fetchFunds, fetchInvestors, fetchRecentOperations } = useFundStore();
-  const [recentOperations, setRecentOperations] = useState<Operation[]>([]);
-  const [totalInvestors, setTotalInvestors] = useState(0);
-  const [opsLoading, setOpsLoading] = useState(false);
+  useDocumentTitle('Vestoria - 仪表盘');
+  const { funds, loading, fetchFunds } = useFundStore();
+  const [selectedTag, setSelectedTag] = useState('');
+  const [recentOperations] = useState<Operation[]>([
+    {
+      id: 1,
+      fund_id: 1,
+      investor_id: 1,
+      operation_type: 'invest',
+      operation_date: '2024-03-12',
+      amount: 10000,
+      amount_type: 'balance',
+      share: 1000,
+      nav_before: 1.0,
+      nav_after: 1.0,
+      total_share_before: 0,
+      total_share_after: 1000,
+      balance_before: 0,
+      balance_after: 10000,
+      transfer_from_id: null,
+      transfer_to_id: null,
+      created_at: '2024-03-12T10:30:00',
+    },
+    {
+      id: 2,
+      fund_id: 1,
+      investor_id: 2,
+      operation_type: 'redeem',
+      operation_date: '2024-03-11',
+      amount: 5000,
+      amount_type: 'balance',
+      share: 500,
+      nav_before: 1.2,
+      nav_after: 1.2,
+      total_share_before: 2000,
+      total_share_after: 1500,
+      balance_before: 24000,
+      balance_after: 18000,
+      transfer_from_id: null,
+      transfer_to_id: null,
+      created_at: '2024-03-11T14:20:00',
+    },
+    {
+      id: 3,
+      fund_id: 1,
+      investor_id: null,
+      operation_type: 'update_nav',
+      operation_date: '2024-03-10',
+      amount: null,
+      amount_type: null,
+      share: null,
+      nav_before: 1.0,
+      nav_after: 1.2,
+      total_share_before: 2000,
+      total_share_after: 2000,
+      balance_before: 20000,
+      balance_after: 24000,
+      transfer_from_id: null,
+      transfer_to_id: null,
+      created_at: '2024-03-10T09:00:00',
+    },
+  ]);
 
   useEffect(() => {
     fetchFunds();
   }, [fetchFunds]);
 
-  // 加载最近操作
-  useEffect(() => {
-    const loadOperations = async () => {
-      setOpsLoading(true);
-      try {
-        const ops = await fetchRecentOperations(10);
-        setRecentOperations(ops);
-      } catch (error) {
-        console.error('Failed to load recent operations:', error);
-      } finally {
-        setOpsLoading(false);
+  // Extract all unique tags (from all funds, before filtering)
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    funds.forEach((fund) => {
+      if (fund.tags) {
+        fund.tags.split(',').forEach((tag) => {
+          const trimmed = tag.trim();
+          if (trimmed) tagsSet.add(trimmed);
+        });
       }
-    };
-    loadOperations();
-  }, [fetchRecentOperations]);
+    });
+    return Array.from(tagsSet).sort();
+  }, [funds]);
 
-  // 计算投资者总数
-  useEffect(() => {
-    const countInvestors = async () => {
-      if (funds.length === 0) {
-        setTotalInvestors(0);
-        return;
-      }
-      let count = 0;
-      for (const fund of funds) {
-        try {
-          const investors = await fetchInvestors(fund.id);
-          count += investors.length;
-        } catch (error) {
-          console.error(`Failed to count investors for fund ${fund.id}:`, error);
-        }
-      }
-      setTotalInvestors(count);
-    };
-    countInvestors();
-  }, [funds, fetchInvestors]);
+  // Filter funds by selected tag
+  const filteredFunds = useMemo(() => {
+    if (!selectedTag) return funds;
+    return funds.filter((f) => f.tags && f.tags.split(',').map((t) => t.trim()).includes(selectedTag));
+  }, [funds, selectedTag]);
 
-  // Calculate totals
-  const totalBalance = funds.reduce((sum, f) => sum + f.balance, 0);
-  const totalShares = funds.reduce((sum, f) => sum + f.total_share, 0);
+  // Calculate totals from filtered funds
+  const totalBalanceCNY = filteredFunds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance * 6.9 : f.balance), 0);
+  const totalBalanceUSD = filteredFunds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance : f.balance / 6.9), 0);
+  const totalInvestorCount = filteredFunds.reduce((sum, f) => sum + (f.investor_count || 0), 0);
 
   const getOperationIcon = (type: string) => {
     switch (type) {
@@ -236,12 +296,8 @@ export default function Dashboard() {
         return { icon: TrendingUp, color: 'var(--success-color)', label: '申购' };
       case 'redeem':
         return { icon: TrendingDown, color: 'var(--danger-color)', label: '赎回' };
-      case 'transfer':
-        return { icon: ArrowRightLeft, color: '#3b82f6', label: '转账' };
       case 'update_nav':
         return { icon: Activity, color: 'var(--info-color)', label: 'NAV更新' };
-      case 'add_investor':
-        return { icon: Users, color: '#8b5cf6', label: '添加投资者' };
       default:
         return { icon: Activity, color: 'var(--text-muted)', label: type };
     }
@@ -306,6 +362,56 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Tag Filter */}
+      {allTags.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              onClick={() => setSelectedTag('')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '20px',
+                border: 'none',
+                background: selectedTag === '' ? 'var(--primary-color)' : 'var(--bg-secondary)',
+                color: selectedTag === '' ? 'white' : 'var(--text-secondary)',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              全部
+            </button>
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setSelectedTag(tag)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  background: selectedTag === tag ? 'var(--primary-color)' : 'var(--bg-secondary)',
+                  color: selectedTag === tag ? 'white' : 'var(--text-secondary)',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div
         style={{
@@ -315,27 +421,76 @@ export default function Dashboard() {
           marginBottom: '32px',
         }}
       >
-        <StatCard
-          title="总资产"
-          value={`¥${totalBalance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`}
-          icon={Wallet}
-          color="#6366f1"
-        />
-        <StatCard
-          title="总份额"
-          value={totalShares.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-          icon={PieChart}
-          color="#22c55e"
-        />
+        {/* Total Assets Card - Custom with CNY and USD */}
+        <div
+          style={{
+            background: 'var(--bg-primary)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid var(--border-color)',
+            transition: 'all 0.3s ease',
+          }}
+          className="hover-lift"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p
+                style={{
+                  fontSize: '14px',
+                  color: 'var(--text-muted)',
+                  marginBottom: '8px',
+                  fontWeight: 500,
+                }}
+              >
+                总资产
+              </p>
+              <h3
+                style={{
+                  fontSize: '28px',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  margin: 0,
+                  letterSpacing: '-0.5px',
+                }}
+              >
+                ¥ {Math.floor(totalBalanceCNY).toLocaleString('zh-CN')}
+              </h3>
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: 'var(--text-muted)',
+                  margin: '4px 0 0 0',
+                }}
+              >
+                $ {Math.floor(totalBalanceUSD).toLocaleString('zh-CN')}
+              </p>
+            </div>
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '14px',
+                background: '#6366f115',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6366f1',
+              }}
+            >
+              <Wallet size={26} />
+            </div>
+          </div>
+        </div>
+
         <StatCard
           title="基金数量"
-          value={funds.length.toString()}
+          value={filteredFunds.length.toString()}
           icon={Activity}
           color="#f59e0b"
         />
         <StatCard
           title="投资者数"
-          value={totalInvestors.toString()}
+          value={totalInvestorCount.toString()}
           icon={Users}
           color="#3b82f6"
         />
@@ -422,7 +577,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {funds.slice(0, 4).map((fund) => (
+              {filteredFunds.slice(0, 4).map((fund) => (
                 <FundCard key={fund.id} fund={fund} />
               ))}
             </div>
@@ -461,89 +616,78 @@ export default function Dashboard() {
               <Calendar size={18} color="var(--text-muted)" />
             </div>
 
-            {opsLoading ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                加载中...
-              </div>
-            ) : recentOperations.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px' }}>
-                <Clock size={40} color="var(--text-muted)" style={{ marginBottom: '12px', opacity: 0.5 }} />
-                <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>暂无操作记录</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {recentOperations.map((op) => {
-                  const { icon: Icon, color, label } = getOperationIcon(op.operation_type);
-                  return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {recentOperations.map((op) => {
+                const { icon: Icon, color, label } = getOperationIcon(op.operation_type);
+                return (
+                  <div
+                    key={op.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '14px',
+                      padding: '16px',
+                      borderRadius: '12px',
+                      background: 'var(--bg-secondary)',
+                    }}
+                  >
                     <div
-                      key={op.id}
                       style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        background: `${color}15`,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '14px',
-                        padding: '16px',
-                        borderRadius: '12px',
-                        background: 'var(--bg-secondary)',
+                        justifyContent: 'center',
+                        color: color,
+                        flexShrink: 0,
                       }}
                     >
-                      <div
+                      <Icon size={20} />
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
                         style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '10px',
-                          background: `${color}15`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: color,
-                          flexShrink: 0,
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                          margin: '0 0 2px 0',
                         }}
                       >
-                        <Icon size={20} />
-                      </div>
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            margin: '0 0 2px 0',
-                          }}
-                        >
-                          {label}
-                        </p>
-                        <p
-                          style={{
-                            fontSize: '12px',
-                            color: 'var(--text-muted)',
-                            margin: 0,
-                          }}
-                        >
-                          {new Date(op.operation_date).toLocaleDateString('zh-CN')}
-                        </p>
-                      </div>
-
-                      {op.amount && (
-                        <p
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            color:
-                              op.operation_type === 'invest'
-                                ? 'var(--success-color)'
-                                : 'var(--danger-color)',
-                          }}
-                        >
-                          {op.operation_type === 'invest' ? '+' : '-'}
-                          ¥{op.amount?.toLocaleString()}
-                        </p>
-                      )}
+                        {label}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--text-muted)',
+                          margin: 0,
+                        }}
+                      >
+                        {new Date(op.operation_date).toLocaleDateString('zh-CN')}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+
+                    {op.amount && (
+                      <p
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color:
+                            op.operation_type === 'invest'
+                              ? 'var(--success-color)'
+                              : 'var(--danger-color)',
+                        }}
+                      >
+                        {op.operation_type === 'invest' ? '+' : '-'}
+                        ¥{op.amount?.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
