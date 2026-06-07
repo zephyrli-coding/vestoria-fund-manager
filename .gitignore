@@ -18,6 +18,8 @@ env/
 *.db
 *.db-journal
 data/*.db
+data/*.db.backup.*
+data/*.db.original
 
 # Environment variables
 .env
@@ -39,3 +41,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Migration data files
+backend/migrations/000_migrate_old_records/fund_data_jsonl/
+backend/migrations/000_migrate_old_records/fund_data_pkl/
+*.pkl
+*.jsonl

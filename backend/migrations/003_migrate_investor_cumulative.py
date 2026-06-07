@@ -9,7 +9,7 @@ Run this after updating the model but before running the app.
 """
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from sqlalchemy import create_engine, Column, Float, inspect, text
 from sqlalchemy.orm import sessionmaker

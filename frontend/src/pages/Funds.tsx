@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   Plus,
   Search,
@@ -8,25 +9,39 @@ import {
   Trash2,
   TrendingUp,
   Eye,
-  Filter,
+  ArrowUpDown,
   Download,
-  ArrowUpDown
+  Upload
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
+import { apiUrl } from '@/config/api';
 import type { Fund } from '@/types/api';
 
 export default function Funds() {
+  useDocumentTitle('Vestoria - 基金管理');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { funds, loading, fetchFunds, deleteFund } = useFundStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const selectedTag = searchParams.get('tag') || '';
+  const setSelectedTag = (tag: string) => {
+    if (tag) {
+      setSearchParams({ tag });
+    } else {
+      setSearchParams({});
+    }
+  };
   const [sortBy, setSortBy] = useState<'name' | 'nav' | 'balance' | 'date'>('date');
   const [sortDesc, setSortDesc] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [fundToDelete, setFundToDelete] = useState<Fund | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchFunds();
-  }, [fetchFunds]);
+    fetchFunds(selectedTag || undefined);
+  }, [fetchFunds, selectedTag]);
 
   const handleDelete = async () => {
     if (!fundToDelete) return;
@@ -38,6 +53,133 @@ export default function Funds() {
       console.error('Delete failed:', error);
     }
   };
+
+  // Handle import fund from JSONL
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    try {
+      const content = await file.text();
+      
+      console.log('Uploading file content length:', content.length);
+      
+      const response = await fetch(apiUrl('/funds/import'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Response result:', result);
+      
+      if (result.code === 0) {
+        alert(`导入成功！\n基金名称: ${result.data.fund_name}\n操作数: ${result.data.success}/${result.data.total_operations}`);
+        fetchFunds(); // Refresh fund list
+      } else {
+        alert('导入失败: ' + (result.message || '未知错误'));
+      }
+    } catch (error: any) {
+      console.error('Import error:', error);
+      alert('导入失败: ' + (error?.message || String(error)));
+    } finally {
+      setImportLoading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Handle batch export
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      // Build export URL with current filters
+      let url = apiUrl('/funds/export');
+      if (selectedTag) {
+        url += `?tag=${encodeURIComponent(selectedTag)}`;
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({}) // Empty body = export all (or filtered by tag)
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('请先登录后再导出');
+        }
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      // Get filename from Content-Disposition header
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = 'funds_export.zip';
+      if (disposition) {
+        const match = disposition.match(/filename="(.+)"/);
+        if (match) {
+          filename = match[1];
+        }
+      }
+
+      // Download file
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+    } catch (error: any) {
+      console.error('Export error:', error);
+      alert('导出失败: ' + (error?.message || String(error)));
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  // Extract all unique tags from funds
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    funds.forEach(fund => {
+      if (fund.tags) {
+        fund.tags.split(',').forEach(tag => {
+          const trimmed = tag.trim();
+          if (trimmed) tagsSet.add(trimmed);
+        });
+      }
+    });
+    return Array.from(tagsSet).sort();
+  }, [funds]);
 
   const filteredFunds = funds
     .filter(
@@ -55,7 +197,10 @@ export default function Funds() {
           comparison = a.net_asset_value - b.net_asset_value;
           break;
         case 'balance':
-          comparison = a.balance - b.balance;
+          const rateA = a.currency === 'USD' ? 6.9 : 1;
+          const rateB = b.currency === 'USD' ? 6.9 : 1;
+          comparison = (a.balance * rateA) - (b.balance * rateB);
+          break;
           break;
         case 'date':
           comparison = new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
@@ -70,26 +215,14 @@ export default function Funds() {
     return { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b' };
   };
 
+  // Parse tags string to array
+  const parseTags = (tags: string): string[] => {
+    if (!tags) return [];
+    return tags.split(',').map(t => t.trim()).filter(t => t);
+  };
+
   return (
     <div className="animate-fade-in">
-      {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1
-          style={{
-            fontSize: '32px',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            margin: '0 0 8px 0',
-            letterSpacing: '-0.5px',
-          }}
-        >
-          基金管理
-        </h1>
-        <p style={{ fontSize: '15px', color: 'var(--text-muted)', margin: 0 }}>
-          管理您的所有基金，查看详细数据和操作记录
-        </p>
-      </div>
-
       {/* Action Bar */}
       <div
         style={{
@@ -132,11 +265,11 @@ export default function Funds() {
             />
           </div>
 
-          <button
+          {/* Tag Filter Dropdown */}
+          <select
+            value={selectedTag}
+            onChange={(e) => setSelectedTag(e.target.value)}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
               padding: '12px 16px',
               background: 'var(--bg-primary)',
               border: '1px solid var(--border-color)',
@@ -145,15 +278,22 @@ export default function Funds() {
               fontSize: '14px',
               fontWeight: 500,
               cursor: 'pointer',
+              outline: 'none',
             }}
           >
-            <Filter size={18} />
-            筛选
-          </button>
+            <option value="">所有标签</option>
+            {allTags.map((tag) => (
+              <option key={tag} value={tag}>
+                #{tag}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
+            onClick={handleExport}
+            disabled={exportLoading || funds.length === 0}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -165,11 +305,43 @@ export default function Funds() {
               color: 'var(--text-secondary)',
               fontSize: '14px',
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: exportLoading || funds.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: exportLoading || funds.length === 0 ? 0.6 : 1,
             }}
           >
             <Download size={18} />
-            导出
+            {exportLoading ? '导出中...' : '导出'}
+          </button>
+
+          {/* Hidden file input for import */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".jsonl,.json,.txt"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+
+          <button
+            onClick={handleImportClick}
+            disabled={importLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 16px',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              color: 'var(--text-secondary)',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: importLoading ? 'not-allowed' : 'pointer',
+              opacity: importLoading ? 0.6 : 1,
+            }}
+          >
+            <Upload size={18} />
+            {importLoading ? '导入中...' : '导入'}
           </button>
 
           <button
@@ -293,7 +465,7 @@ export default function Funds() {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {col.label}
-                        {sortBy === col.key && col.key !== 'actions' && col.key !== 'shares' && (
+                        {col.key !== 'actions' && col.key !== 'shares' && sortBy === (col.key as typeof sortBy) && (
                           <ArrowUpDown
                             size={14}
                             style={{
@@ -346,7 +518,7 @@ export default function Funds() {
                               flexShrink: 0,
                             }}
                           >
-                            {fund.name.charAt(0)}
+                            {Array.from(fund.name)[0] || '?'}
                           </div>
                           <div>
                             <p
@@ -357,10 +529,25 @@ export default function Funds() {
                                 margin: '0 0 2px 0',
                               }}
                             >
-                              {fund.name}
+                              {Array.from(fund.name).slice(1).join('') || fund.name}
                             </p>
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                              ID: {fund.id}
+                              {parseTags(fund.tags).map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    marginRight: '8px',
+                                    padding: '2px 8px',
+                                    background: 'rgba(99, 102, 241, 0.1)',
+                                    color: '#6366f1',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
                             </p>
                           </div>
                         </div>
@@ -386,21 +573,28 @@ export default function Funds() {
                       </td>
 
                       <td style={{ padding: '20px' }}>
-                        <p
-                          style={{
-                            fontSize: '15px',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            margin: 0,
-                          }}
-                        >
-                          {fund.currency === 'USD' ? '$' : '¥'}{fund.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-                        </p>
+                        <div>
+                          <p
+                            style={{
+                              fontSize: '15px',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                              margin: 0,
+                            }}
+                          >
+                            {fund.currency === 'USD' ? '$' : '¥'} {Math.floor(fund.balance).toLocaleString('zh-CN')}
+                          </p>
+                          {fund.currency === 'USD' && (
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                              (¥ {Math.floor(fund.balance * 6.9).toLocaleString('zh-CN')})
+                            </p>
+                          )}
+                        </div>
                       </td>
 
                       <td style={{ padding: '20px' }}>
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
-                          {fund.total_share.toFixed(4)}
+                          {Math.floor(fund.total_share).toLocaleString('zh-CN')}
                         </p>
                       </td>
 
@@ -441,7 +635,10 @@ export default function Funds() {
                           </button>
 
                           <button
-                            onClick={() => navigate(`/funds/${fund.id}/edit`)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/funds/${fund.id}/edit`);
+                            }}
                             style={{
                               width: '36px',
                               height: '36px',

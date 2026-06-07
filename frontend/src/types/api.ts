@@ -1,5 +1,12 @@
 // 全局类型定义
 
+// API 通用响应格式
+export interface ApiResponse<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+
 export interface User {
   id: number;
   username: string;
@@ -10,11 +17,27 @@ export interface Fund {
   name: string;
   start_date: string;
   currency: 'CNY' | 'USD';
+  tags: string;
   total_share: number;
   net_asset_value: number;
   balance: number;
+  investor_count?: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface FundCreate {
+  name: string;
+  start_date: string;
+  currency: 'CNY' | 'USD';
+  tags?: string;
+}
+
+export interface FundUpdate {
+  name: string;
+  start_date: string;
+  currency: 'CNY' | 'USD';
+  tags?: string;
 }
 
 export interface Investor {
@@ -25,6 +48,7 @@ export interface Investor {
   balance: number;
   total_invested: number;
   total_redeemed: number;
+  creation_date?: string;
   created_at: string;
 }
 

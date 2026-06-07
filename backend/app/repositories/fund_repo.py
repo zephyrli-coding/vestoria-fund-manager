@@ -12,9 +12,9 @@ class FundRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, name: str, start_date: str, currency: str = 'CNY') -> Fund:
+    def create(self, name: str, start_date: str, currency: str = 'CNY', tags: str = '') -> Fund:
         """Create a new fund."""
-        fund = Fund(name=name, start_date=start_date, currency=currency)
+        fund = Fund(name=name, start_date=start_date, currency=currency, tags=tags)
         self.db.add(fund)
         self.db.commit()
         self.db.refresh(fund)
@@ -28,9 +28,12 @@ class FundRepository:
         """Get fund by name."""
         return self.db.query(Fund).filter(Fund.name == name).first()
 
-    def get_all(self, skip: int = 0, limit: int = 20) -> List[Fund]:
-        """Get all funds with pagination."""
-        return self.db.query(Fund).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int = 20, tag: str = None) -> List[Fund]:
+        """Get all funds with pagination and optional tag filter."""
+        query = self.db.query(Fund)
+        if tag:
+            query = query.filter(Fund.tags.like(f'%{tag}%'))
+        return query.offset(skip).limit(limit).all()
 
     def count(self) -> int:
         """Count total funds."""
@@ -70,7 +73,23 @@ class FundRepository:
         nav: float,
         balance: float
     ) -> FundHistory:
-        """Create fund history record."""
+        """Create fund history record. If date already exists, update it."""
+        # Check if history record already exists for this date
+        existing = self.db.query(FundHistory).filter(
+            FundHistory.fund_id == fund_id,
+            FundHistory.history_date == history_date
+        ).first()
+        
+        if existing:
+            # Update existing record
+            existing.total_share = total_share
+            existing.net_asset_value = nav
+            existing.balance = balance
+            self.db.commit()
+            self.db.refresh(existing)
+            return existing
+        
+        # Create new record
         history = FundHistory(
             fund_id=fund_id,
             history_date=history_date,

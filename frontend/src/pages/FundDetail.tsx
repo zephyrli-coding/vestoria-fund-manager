@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { apiUrl } from '@/config/api';
 import {
   LineChart,
   Line,
@@ -24,7 +26,8 @@ import {
   Trash2,
   X,
   Check,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Download
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
 import type { Fund, Operation, Investor } from '@/types/api';
@@ -51,6 +54,7 @@ export default function FundDetail() {
   // Modal states
   const [showAddInvestorModal, setShowAddInvestorModal] = useState(false);
   const [newInvestorName, setNewInvestorName] = useState('');
+  const [newInvestorDate, setNewInvestorDate] = useState(new Date().toISOString().split('T')[0]);
   const [adding, setAdding] = useState(false);
   const [investorSearchQuery, setInvestorSearchQuery] = useState('');
 
@@ -81,27 +85,6 @@ export default function FundDetail() {
   const [navCapital, setNavCapital] = useState('');
   const [navDate, setNavDate] = useState(new Date().toISOString().split('T')[0]);
   const [updatingNav, setUpdatingNav] = useState(false);
-
-  // Copy tooltip
-  const [copiedText, setCopiedText] = useState<string | null>(null);
-
-  const copyToClipboard = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedText(label);
-      setTimeout(() => setCopiedText(null), 1500);
-    } catch {
-      // fallback
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      setCopiedText(label);
-      setTimeout(() => setCopiedText(null), 1500);
-    }
-  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -164,15 +147,39 @@ export default function FundDetail() {
     }
   };
 
+  const handleExportOperations = async () => {
+    if (!id) return;
+    try {
+      const response = await fetch(apiUrl(`/funds/${id}/operations/export`));
+      if (!response.ok) throw new Error('Export failed');
+      
+      const content = await response.text();
+      
+      // Create download
+      const blob = new Blob([content], { type: 'application/jsonl' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fund_${id}_operations.jsonl`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('导出失败: ' + (error as Error).message);
+    }
+  };
+
   const handleAddInvestor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newInvestorName.trim() || !id) return;
 
     setAdding(true);
     try {
-      await addInvestor(parseInt(id), newInvestorName.trim());
+      await addInvestor(parseInt(id), newInvestorName.trim(), newInvestorDate);
       setShowAddInvestorModal(false);
       setNewInvestorName('');
+      setNewInvestorDate(new Date().toISOString().split('T')[0]);
       await loadInvestors();
     } catch (error) {
       console.error('Failed to add investor:', error);
@@ -293,32 +300,6 @@ export default function FundDetail() {
 
   return (
     <div className="animate-fade-in">
-      {/* Copy Toast */}
-      {copiedText && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '80px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9999,
-            padding: '10px 20px',
-            borderRadius: '10px',
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--border-color)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            fontSize: '14px',
-            fontWeight: 500,
-            color: 'var(--success-color)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          ✅ {copiedText}
-        </div>
-      )}
-
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <Link
@@ -401,6 +382,26 @@ export default function FundDetail() {
             >
               <Activity size={18} />
               更新净值
+            </button>
+
+            <button
+              onClick={handleExportOperations}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-secondary)',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              <Download size={18} />
+              导出记录
             </button>
 
             <button
@@ -567,12 +568,11 @@ export default function FundDetail() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
+                gridTemplateColumns: '2fr 1fr',
                 gap: '24px',
-                marginBottom: '24px',
               }}
             >
-              {/* 左侧：NAV 走势图 */}
+              {/* 左侧：图表 */}
               <div
                 style={{
                   background: 'var(--bg-secondary)',
@@ -600,7 +600,17 @@ export default function FundDetail() {
                         fontSize={12}
                         tickFormatter={(value) => new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
                       />
-                      <YAxis stroke="var(--text-muted)" fontSize={12} />
+                      <YAxis
+                        stroke="var(--text-muted)"
+                        fontSize={12}
+                        domain={(() => {
+                          const values = chartData.map(d => d.nav);
+                          const min = Math.min(...values);
+                          const max = Math.max(...values);
+                          return [min * 0.95, max * 1.05];
+                        })()}
+                        tickFormatter={(value) => value.toFixed(4)}
+                      />
                       <Tooltip
                         contentStyle={{
                           background: 'var(--bg-primary)',
@@ -615,7 +625,7 @@ export default function FundDetail() {
                         dataKey="nav"
                         stroke="#6366f1"
                         strokeWidth={2}
-                        dot={{ fill: '#6366f1', strokeWidth: 0, r: 4 }}
+                        dot={chartData.length > 10 ? false : { fill: '#6366f1', strokeWidth: 0, r: 4 }}
                         activeDot={{ r: 6, stroke: '#6366f1', strokeWidth: 2 }}
                       />
                     </LineChart>
@@ -636,126 +646,41 @@ export default function FundDetail() {
                 )}
               </div>
 
-              {/* 右侧：总资产走势图 */}
-              <div
-                style={{
-                  background: 'var(--bg-secondary)',
-                  borderRadius: '12px',
-                  padding: '20px',
-                }}
-              >
-                <h4
+              {/* 右侧：基本信息 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div
                   style={{
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                    margin: '0 0 16px 0',
+                    padding: '20px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
                   }}
                 >
-                  总资产走势
-                </h4>
-                {chartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                      <XAxis
-                        dataKey="date"
-                        stroke="var(--text-muted)"
-                        fontSize={12}
-                        tickFormatter={(value) => new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
-                      />
-                      <YAxis
-                        stroke="var(--text-muted)"
-                        fontSize={12}
-                        tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: 'var(--bg-primary)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '8px',
-                        }}
-                        formatter={(value: number) => [formatMoney(value, fund.currency), '总资产']}
-                        labelFormatter={(label) => new Date(label).toLocaleDateString('zh-CN')}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="balance"
-                        stroke="#22c55e"
-                        strokeWidth={2}
-                        dot={{ fill: '#22c55e', strokeWidth: 0, r: 4 }}
-                        activeDot={{ r: 6, stroke: '#22c55e', strokeWidth: 2 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div
-                    style={{
-                      height: '250px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--text-muted)',
-                      fontSize: '14px',
-                    }}
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                    基金 ID
+                  </p>
+                  <p
+                    style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
                   >
-                    暂无历史数据
-                  </div>
-                )}
-              </div>
-            </div>
+                    #{fund.id}
+                  </p>
+                </div>
 
-            {/* 基本信息 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-              <div
-                style={{
-                  padding: '20px',
-                  background: 'var(--bg-secondary)',
-                  borderRadius: '12px',
-                }}
-              >
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-                  基金 ID
-                </p>
-                <p
-                  style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+                <div
+                  style={{
+                    padding: '20px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                  }}
                 >
-                  #{fund.id}
-                </p>
-              </div>
-
-              <div
-                style={{
-                  padding: '20px',
-                  background: 'var(--bg-secondary)',
-                  borderRadius: '12px',
-                }}
-              >
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-                  创建时间
-                </p>
-                <p
-                  style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
-                >
-                  {new Date(fund.created_at).toLocaleString('zh-CN')}
-                </p>
-              </div>
-
-              <div
-                style={{
-                  padding: '20px',
-                  background: 'var(--bg-secondary)',
-                  borderRadius: '12px',
-                }}
-              >
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-                  币种
-                </p>
-                <p
-                  style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
-                >
-                  {fund.currency === 'USD' ? '美元 (USD)' : '人民币 (CNY)'}
-                </p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                    创建时间
+                  </p>
+                  <p
+                    style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+                  >
+                    {new Date(fund.created_at).toLocaleString('zh-CN')}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -858,221 +783,159 @@ export default function FundDetail() {
                 <p>暂无投资者</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {investors
-                  .filter(inv => inv.name.toLowerCase().includes(investorSearchQuery.toLowerCase()))
-                  .map((investor) => (
-                    <div
-                      key={investor.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '16px',
-                        background: 'var(--bg-secondary)',
-                        borderRadius: '12px',
-                        transition: 'all 0.2s',
-                      }}
-                      className="hover-lift"
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'var(--bg-primary)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'var(--bg-secondary)';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                    <div
-                      style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
-                      onClick={() => navigate(`/funds/${fund?.id}/investors/${investor.id}`)}
-                    >
-                      <div
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '10px',
-                          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {investor.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p
-                          style={{
-                            fontSize: '15px',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            margin: 0,
-                          }}
-                        >
-                          {investor.name}
-                        </p>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                          加入时间: {new Date(investor.created_at).toLocaleDateString('zh-CN')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                      {/* Share and Balance - Equal size, side by side */}
-                      <div style={{ display: 'flex', gap: '24px' }}>
-                        <div
-                          style={{ textAlign: 'right', cursor: 'pointer', position: 'relative' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            copyToClipboard(investor.share.toString(), '份额已复制');
-                          }}
-                          title="点击复制份额"
-                        >
-                          <p
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-secondary)' }}>
+                      <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        投资者
+                      </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        持有份额
+                      </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        资产价值 ({fund?.currency === 'USD' ? '$' : '¥'})
+                      </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        累计收益 ({fund?.currency === 'USD' ? '$' : '¥'})
+                      </th>
+                      <th style={{ padding: '16px 20px', textAlign: 'center', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        操作
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {investors
+                      .filter(inv => inv.name.toLowerCase().includes(investorSearchQuery.toLowerCase()))
+                      .map((investor, index) => {
+                        const totalReturn = (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested);
+                        const returnPositive = totalReturn >= 0;
+                        return (
+                          <tr
+                            key={investor.id}
+                            onClick={() => navigate(`/funds/${fund?.id}/investors/${investor.id}`)}
                             style={{
-                              fontSize: '20px',
-                              fontWeight: 700,
-                              color: 'var(--text-primary)',
-                              margin: '0 0 4px 0',
+                              borderBottom: index < investors.length - 1 ? '1px solid var(--border-color)' : 'none',
+                              transition: 'background 0.2s',
+                              cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'var(--bg-secondary)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
                             }}
                           >
-                            {Math.floor(investor.share).toLocaleString()} 份
-                          </p>
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                            持有份额
-                          </p>
-                        </div>
-                        <div
-                          style={{ textAlign: 'right', cursor: 'pointer', position: 'relative' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            copyToClipboard(investor.balance.toFixed(2), '资产价值已复制');
-                          }}
-                          title="点击复制资产价值"
-                        >
-                          <p
-                            style={{
-                              fontSize: '20px',
-                              fontWeight: 700,
-                              color: 'var(--text-primary)',
-                              margin: '0 0 4px 0',
-                            }}
-                          >
-                            {formatMoney(investor.balance, fund?.currency)}
-                          </p>
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                            资产价值
-                          </p>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <p
-                            style={{
-                              fontSize: '20px',
-                              fontWeight: 700,
-                              color: (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested) >= 0 ? '#22c55e' : '#ef4444',
-                              margin: '0 0 4px 0',
-                            }}
-                          >
-                            {(() => {
-                              const totalReturn = (investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested);
-                              return `${totalReturn >= 0 ? '+' : ''}${formatMoney(totalReturn, fund?.currency)}`;
-                            })()}
-                          </p>
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                            累计收益
-                          </p>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <p
-                            style={{
-                              fontSize: '20px',
-                              fontWeight: 700,
-                              color: (() => {
-                                const totalReturn = investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested;
-                                const returnRate = investor.total_invested > 0 ? (totalReturn / investor.total_invested) * 100 : 0;
-                                return returnRate >= 0 ? '#22c55e' : '#ef4444';
-                              })(),
-                              margin: '0 0 4px 0',
-                            }}
-                          >
-                            {(() => {
-                              const totalReturn = investor.share * (fund?.net_asset_value || 0) + investor.total_redeemed - investor.total_invested;
-                              const returnRate = investor.total_invested > 0 ? (totalReturn / investor.total_invested) * 100 : 0;
-                              return `${returnRate >= 0 ? '+' : ''}${returnRate.toFixed(2)}%`;
-                            })()}
-                          </p>
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                            收益率
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedInvestor(investor);
-                            setShowInvestModal(true);
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: '#22c55e',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          申购
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedInvestor(investor);
-                            setShowRedeemModal(true);
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: '#ef4444',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          赎回
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedInvestor(investor);
-                            setShowTransferModal(true);
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: '#3b82f6',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          转账
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  ))}
+                            <td style={{ padding: '20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div
+                                  style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '12px',
+                                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {Array.from(investor.name)[0] || '?'}
+                                </div>
+                                <div>
+                                  <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>
+                                    {investor.name}
+                                  </p>
+                                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+                                    加入时间: {new Date(investor.creation_date || investor.created_at).toLocaleDateString('zh-CN')}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                              <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                                {Math.floor(investor.share).toLocaleString()}
+                              </p>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                              <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                                {Math.floor(investor.balance).toLocaleString()}
+                              </p>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'right' }}>
+                              <p style={{ fontSize: '15px', fontWeight: 600, color: returnPositive ? '#22c55e' : '#ef4444', margin: 0 }}>
+                                {returnPositive ? '+' : ''}{Math.floor(totalReturn).toLocaleString()}
+                              </p>
+                            </td>
+                            <td style={{ padding: '20px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedInvestor(investor);
+                                    setShowInvestModal(true);
+                                  }}
+                                  style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: '#22c55e',
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  申购
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedInvestor(investor);
+                                    setShowRedeemModal(true);
+                                  }}
+                                  style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  赎回
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedInvestor(investor);
+                                    setShowTransferModal(true);
+                                  }}
+                                  style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: '#3b82f6',
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  转账
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -1292,6 +1155,48 @@ export default function FundDetail() {
                     }}
                     required
                     autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* 创建日期 */}
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  创建日期 *
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <Calendar size={20} color="var(--text-muted)" />
+                  <input
+                    type="date"
+                    value={newInvestorDate}
+                    onChange={(e) => setNewInvestorDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontSize: '15px',
+                      color: 'var(--text-primary)',
+                    }}
+                    required
                   />
                 </div>
               </div>

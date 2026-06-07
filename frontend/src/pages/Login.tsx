@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { TrendingUp, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 
 export default function Login() {
   const navigate = useNavigate();
+  useDocumentTitle('Vestoria - 登录');
   const { login } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -322,43 +324,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          <div
-            style={{
-              marginTop: '32px',
-              padding: '20px',
-              borderRadius: '12px',
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <p
-              style={{
-                fontSize: '13px',
-                color: 'var(--text-muted)',
-                margin: '0 0 8px 0',
-              }}
-            >
-              默认账号
-            </p>
-            <div
-              style={{
-                display: 'flex',
-                gap: '16px',
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>用户名: </span>
-                <strong>admin</strong>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>密码: </span>
-                <strong>admin123</strong>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

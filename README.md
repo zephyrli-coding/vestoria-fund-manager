@@ -6,21 +6,71 @@
 
 ## 🚀 快速启动
 
-### 1. 环境要求
+### 方式一：Docker Compose 部署（推荐用于生产/演示）
+
+**环境要求：**
+- Docker
+- Docker Compose
+
+**部署步骤：**
+
+```bash
+# 1. 克隆代码
+git clone https://github.com/Zaaachary/fund_manager.git
+cd fund_manager
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env，设置 SECRET_KEY（重要！）
+# 生成密钥: openssl rand -hex 32
+
+# 3. 启动服务
+docker compose up -d --build
+
+# 4. 访问系统
+# 前端: http://localhost:20260
+# API 文档: http://localhost:20260/docs
+# 默认账号: admin / admin123
+```
+
+**常用命令：**
+```bash
+# 查看日志
+docker compose logs -f
+
+# 停止服务
+docker compose down
+
+# 重启服务
+docker compose restart
+
+# 更新部署（拉取新代码后）
+docker compose up -d --build
+```
+
+**数据持久化：**
+- 数据库文件保存在 `./data/fund_manager.db`
+- 通过 Docker volume 挂载，容器重启数据不丢失
+
+---
+
+### 方式二：本地开发环境
+
+**环境要求：**
 - **Python**: 3.12+
 - **Node.js**: 18+
 - **uv**: Python 包管理器（必须）
 
 ```bash
 # 安装 uv
- curl -LsSf https://astral.sh/uv/install.sh | sh
- export PATH="$HOME/.local/bin:$PATH"
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### 2. 后端启动
+#### 1. 启动后端
 
 ```bash
-cd projects/fund-manager/backend
+cd backend
 
 # 创建虚拟环境
 uv venv
@@ -28,13 +78,13 @@ uv venv
 # 激活虚拟环境
 source .venv/bin/activate
 
-# 安装依赖（如未安装）
+# 安装依赖
 uv pip install -r requirements.txt
 
 # 初始化数据库（首次）
 python init_db.py
 
-# 启动后端
+# 启动后端服务
 ./start.sh
 # 或手动: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -44,29 +94,30 @@ python init_db.py
 - API 文档: http://localhost:8000/docs
 - 默认账号: `admin` / `admin123`
 
-### 3. 前端启动
+#### 2. 启动前端
 
 ```bash
-cd projects/fund-manager/frontend
+cd frontend
 
-# 安装依赖（如未安装）
+# 安装依赖
 npm install
 
-# 启动前端
+# 启动开发服务器
 npm run dev
 ```
 
 **前端服务：**
 - http://localhost:5173
+- 开发模式下支持热重载
 
-### 4. 访问系统
+#### 3. 访问系统
 
 ```bash
-# SSH 隧道穿透（远程服务器）
-ssh -L 5173:localhost:5173 -L 8000:localhost:8000 linuxuser@45.76.159.208
-
 # 本地访问
 http://localhost:5173
+
+# SSH 隧道穿透（远程服务器开发）
+ssh -L 5173:localhost:5173 -L 8000:localhost:8000 user@server
 ```
 
 ---
@@ -91,6 +142,13 @@ http://localhost:5173
 | TypeScript | - | 类型系统 |
 | Zustand | ^5.0.2 | 状态管理 |
 | Lucide React | ^0.460.0 | 图标库 |
+
+### 部署
+| 技术 | 说明 |
+|------|------|
+| Docker | 容器化 |
+| Docker Compose | 多服务编排 |
+| Nginx | 反向代理、静态文件服务 |
 
 ---
 
@@ -170,6 +228,7 @@ http://localhost:5173
 - [x] JWT 认证
 - [x] 响应式 UI（支持宽屏）
 - [x] 操作日期选择（申购/赎回/转账/更新净值）
+- [x] Docker Compose 一键部署
 
 ### ⏳ 待实现（后续迭代）
 - [ ] 数据导出（CSV/Excel）
@@ -190,36 +249,56 @@ projects/fund-manager/
 │   │   ├── models/       # 数据库模型
 │   │   ├── services/     # 业务逻辑
 │   │   └── cli/          # CLI 工具
-│   ├── data/             # SQLite 数据库
+│   ├── data/             # SQLite 数据库（开发）
+│   ├── Dockerfile        # 后端镜像构建
 │   └── requirements.txt
 ├── frontend/             # 前端
 │   ├── src/
 │   │   ├── pages/        # 页面组件
 │   │   ├── stores/       # Zustand 状态
 │   │   └── api/          # API 封装
+│   ├── Dockerfile        # 前端镜像构建
 │   └── package.json
+├── data/                 # 生产数据目录（Docker 挂载）
 ├── docs/                 # 文档
 │   ├── API-DESIGN.md     # API 详细设计
 │   └── BACKEND_CAPABILITIES.md  # 后端能力清单
-└── test_samples/         # 测试用例
+├── docker-compose.yml    # Docker Compose 配置
+├── nginx.conf            # Nginx 配置
+├── .env.example          # 环境变量模板
+└── README.md             # 本文件
 ```
 
 ---
 
 ## 🔧 常用命令
 
+### Docker 部署
 ```bash
-# 后端
+docker compose up -d --build     # 构建并启动
+docker compose logs -f backend   # 查看后端日志
+docker compose logs -f frontend  # 查看前端日志
+docker compose down              # 停止并移除容器
+docker compose restart           # 重启服务
+```
+
+### 后端开发
+```bash
+cd backend
+source .venv/bin/activate
 ./start.sh                              # 启动后端
-python init_db.py                       # 初始化数据库
+python init_db.py                       # 初始化数据库（开发）
 python -m app.cli --help                # CLI 帮助
+rm -rf data/ && python init_db.py       # 重置数据库
+```
 
-# 前端
+### 前端开发
+```bash
+cd frontend
+npm install                             # 安装依赖
 npm run dev                             # 开发模式
-npm run build                           # 构建
-
-# 数据库（开发）
-rm -rf backend/data/ && python init_db.py  # 重置数据库
+npm run build                           # 生产构建
+npm run preview                         # 预览生产构建
 ```
 
 ---
@@ -245,6 +324,15 @@ rm -rf backend/data/ && python init_db.py  # 重置数据库
 - [API 详细设计](./docs/API-DESIGN.md) - 完整的 API 规范
 - [后端能力清单](./docs/BACKEND_CAPABILITIES.md) - 后端功能说明
 - [测试用例](./test_samples/) - 复杂场景测试
+
+---
+
+## 🔐 安全提示
+
+1. **生产环境务必修改默认密码**
+2. **修改 SECRET_KEY**（使用 `openssl rand -hex 32` 生成）
+3. **定期备份** `./data/` 目录下的数据库文件
+4. **不要**将 `.env` 文件提交到 Git
 
 ---
 
