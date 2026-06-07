@@ -669,7 +669,6 @@ export default function InvestorDetail() {
           )}
         </div>
       </div>
-    </div>
 
       {/* Invest Modal */}
       {showInvestModal && (
@@ -903,5 +902,6 @@ export default function InvestorDetail() {
           </div>
         </div>
       )}
+    </div>
   );
 }

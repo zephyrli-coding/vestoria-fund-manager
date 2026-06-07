@@ -27,7 +27,8 @@ import {
   X,
   Check,
   ArrowRightLeft,
-  Download
+  Download,
+  UserPlus
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
 import type { Fund, Operation, Investor } from '@/types/api';
@@ -1121,119 +1122,148 @@ export default function FundDetail() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {operations.map((op) => (
-                  <div
-                    key={op.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '16px',
-                      padding: '16px',
-                      background: 'var(--bg-secondary)',
-                      borderRadius: '12px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '10px',
-                        background:
-                          op.operation_type === 'invest'
-                            ? 'rgba(34, 197, 94, 0.1)'
-                            : op.operation_type === 'redeem'
-                            ? 'rgba(239, 68, 68, 0.1)'
-                            : op.operation_type === 'transfer'
-                            ? 'rgba(59, 130, 246, 0.1)'
-                            : 'rgba(245, 158, 11, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color:
-                          op.operation_type === 'invest'
-                            ? '#22c55e'
-                            : op.operation_type === 'redeem'
-                            ? '#ef4444'
-                            : op.operation_type === 'transfer'
-                            ? '#3b82f6'
-                            : '#f59e0b',
-                      }}
-                    >
-                      {op.operation_type === 'invest' ? (
-                        <TrendingUp size={20} />
-                      ) : op.operation_type === 'redeem' ? (
-                        <TrendingDown size={20} />
-                      ) : op.operation_type === 'transfer' ? (
-                        <ArrowRightLeft size={20} />
-                      ) : (
-                        <Activity size={20} />
-                      )}
-                    </div>
+                {operations.map((op) => {
+                  const opConfig = {
+                    invest: { label: '申购', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)', icon: TrendingUp },
+                    redeem: { label: '赎回', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', icon: TrendingDown },
+                    transfer: { label: '转账', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', icon: ArrowRightLeft },
+                    update_nav: { label: '净值更新', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: Activity },
+                    add_investor: { label: '添加投资者', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', icon: UserPlus },
+                  }[op.operation_type] || { label: op.operation_type, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: Activity };
 
-                    <div style={{ flex: 1 }}>
-                      <p
+                  const Icon = opConfig.icon;
+
+                  return (
+                    <div
+                      key={op.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '14px',
+                        padding: '16px',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '12px',
+                        border: '1px solid transparent',
+                        transition: 'border-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; }}
+                    >
+                      {/* Icon */}
+                      <div
                         style={{
-                          fontSize: '15px',
-                          fontWeight: 600,
-                          color: 'var(--text-primary)',
-                          margin: '0 0 2px 0',
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          background: opConfig.bg,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: opConfig.color,
+                          flexShrink: 0,
+                          marginTop: '2px',
                         }}
                       >
-                        {op.operation_type === 'invest'
-                          ? '申购'
-                          : op.operation_type === 'redeem'
-                          ? '赎回'
-                          : op.operation_type === 'transfer'
-                          ? '转账'
-                          : op.operation_type === 'update_nav'
-                          ? '净值更新'
-                          : op.operation_type === 'add_investor'
-                          ? '添加投资者'
-                          : op.operation_type}
-                      </p>
-                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                        {new Date(op.operation_date).toLocaleString('zh-CN')}
-                      </p>
-                      {op.share && op.share > 0 && (
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-                          份额: {Math.floor(op.share).toLocaleString()} 份
-                        </p>
-                      )}
-                    </div>
+                        <Icon size={20} />
+                      </div>
 
-                    <div style={{ textAlign: 'right' }}>
-                      {op.amount ? (
-                        <p
-                          style={{
-                            fontSize: '16px',
-                            fontWeight: 700,
-                            color:
-                              op.operation_type === 'invest'
-                                ? '#22c55e'
-                                : op.operation_type === 'redeem'
-                                ? '#ef4444'
-                                : 'var(--text-primary)',
-                            margin: '0 0 2px 0',
-                          }}
-                        >
-                          {op.operation_type === 'invest' ? '+' : '-'}
-                          ¥{Math.floor(op.amount).toLocaleString()}
-                        </p>
-                      ) : op.nav_before && op.nav_after ? (
-                        <p
-                          style={{
-                            fontSize: '16px',
-                            fontWeight: 700,
-                            color: 'var(--text-primary)',
-                            margin: '0 0 2px 0',
-                          }}
-                        >
-                          {op.nav_before.toFixed(4)} → {op.nav_after.toFixed(4)}
-                        </p>
-                      ) : null}
+                      {/* Main Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Row 1: Type + Date */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {opConfig.label}
+                          </span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            {new Date(op.operation_date).toLocaleDateString('zh-CN')}
+                          </span>
+                        </div>
+
+                        {/* Row 2: Per-operation details */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                          {/* invest / redeem / add_investor: show investor */}
+                          {(op.operation_type === 'invest' || op.operation_type === 'redeem' || op.operation_type === 'add_investor') && op.investor_name && (
+                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                              投资者: <strong style={{ color: 'var(--text-primary)' }}>{op.investor_name}</strong>
+                            </span>
+                          )}
+
+                          {/* transfer: show from → to */}
+                          {op.operation_type === 'transfer' && (
+                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                              {op.transfer_from_name || '未知'} <span style={{ color: opConfig.color, margin: '0 4px' }}>→</span> {op.transfer_to_name || '未知'}
+                            </span>
+                          )}
+
+                          {/* share amount */}
+                          {op.share && op.share > 0 && (
+                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                              份额: <strong style={{ color: 'var(--text-primary)' }}>{Math.floor(op.share).toLocaleString()}</strong>
+                            </span>
+                          )}
+
+                          {/* amount_type badge for redeem/transfer */}
+                          {(op.operation_type === 'redeem' || op.operation_type === 'transfer') && op.amount_type && (
+                            <span style={{
+                              fontSize: '11px',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: 'var(--bg-primary)',
+                              color: 'var(--text-muted)',
+                              border: '1px solid var(--border-color)',
+                            }}>
+                              {op.amount_type === 'share' ? '按份额' : '按金额'}
+                            </span>
+                          )}
+
+                          {/* nav_before for invest/redeem/transfer */}
+                          {(op.operation_type === 'invest' || op.operation_type === 'redeem' || op.operation_type === 'transfer') && op.nav_before && (
+                            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                              NAV: {op.nav_before.toFixed(4)}
+                            </span>
+                          )}
+
+                          {/* update_nav: balance & share change */}
+                          {op.operation_type === 'update_nav' && (
+                            <>
+                              {op.balance_before != null && op.balance_after != null && (
+                                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                  总资产: {Math.floor(op.balance_before).toLocaleString()} → {Math.floor(op.balance_after).toLocaleString()}
+                                </span>
+                              )}
+                              {op.total_share_before != null && op.total_share_after != null && (
+                                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                  总份额: {Math.floor(op.total_share_before).toLocaleString()} → {Math.floor(op.total_share_after).toLocaleString()}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: Amount / NAV */}
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        {op.operation_type === 'invest' && op.amount ? (
+                          <p style={{ fontSize: '16px', fontWeight: 700, color: '#22c55e', margin: '0 0 2px 0' }}>
+                            +{fund?.currency === 'USD' ? '$' : '¥'}{Math.floor(op.amount).toLocaleString()}
+                          </p>
+                        ) : op.operation_type === 'redeem' && op.amount ? (
+                          <p style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444', margin: '0 0 2px 0' }}>
+                            -{fund?.currency === 'USD' ? '$' : '¥'}{Math.floor(op.amount).toLocaleString()}
+                          </p>
+                        ) : op.operation_type === 'transfer' && op.amount ? (
+                          <p style={{ fontSize: '16px', fontWeight: 700, color: '#3b82f6', margin: '0 0 2px 0' }}>
+                            {fund?.currency === 'USD' ? '$' : '¥'}{Math.floor(op.amount).toLocaleString()}
+                          </p>
+                        ) : op.operation_type === 'update_nav' && op.nav_before != null && op.nav_after != null ? (
+                          <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>
+                            {op.nav_before.toFixed(4)} → {op.nav_after.toFixed(4)}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

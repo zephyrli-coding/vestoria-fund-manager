@@ -25,6 +25,11 @@ class OperationResponse(BaseModel):
     transfer_to_id: Optional[int] = Field(default=None, description="Transfer to investor ID")
     created_at: datetime = Field(..., description="Record creation time")
 
+    # Joined investor names (populated via eager load)
+    investor_name: Optional[str] = Field(default=None, description="Investor name")
+    transfer_from_name: Optional[str] = Field(default=None, description="Transfer from investor name")
+    transfer_to_name: Optional[str] = Field(default=None, description="Transfer to investor name")
+
     class Config:
         from_attributes = True
 
