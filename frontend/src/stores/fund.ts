@@ -150,7 +150,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   fetchInvestorOperations: async (fundId: number, investorId: number, page: number = 1, pageSize: number = 50) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<PaginatedResponse<Operation>>(
+      const response = await request<ApiResponse<PaginatedResponse<Operation>>>(
         `/funds/${fundId}/investors/${investorId}/operations?page=${page}&page_size=${pageSize}`
       );
 
@@ -171,7 +171,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   fetchRecentOperations: async (limit: number = 10) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<PaginatedResponse<Operation>>(`/operations/recent?limit=${limit}`);
+      const response = await request<ApiResponse<PaginatedResponse<Operation>>>(`/operations/recent?limit=${limit}`);
 
       if (response.code === 0) {
         return response.data.items;
