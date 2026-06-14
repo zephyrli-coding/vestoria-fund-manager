@@ -49,7 +49,7 @@ The start script will:
 ## Default Admin
 
 - Username: `admin`
-- Password: `admin123`
+- Password: `[REDACTED_TEST_PASSWORD]`
 
 **⚠️ Change the default password in production!**
 

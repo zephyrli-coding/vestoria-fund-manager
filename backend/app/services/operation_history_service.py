@@ -85,7 +85,8 @@ class OperationHistoryService:
             "_type": "fund_meta",
             "name": fund.name,
             "start_date": fund.start_date,
-            "currency": fund.currency
+            "currency": fund.currency,
+            "tags": fund.tags or ""
         }
         lines.append(json.dumps(meta, ensure_ascii=False))
         
@@ -175,7 +176,8 @@ class OperationHistoryService:
         fund_meta = {
             "name": first_line.get("name"),
             "start_date": first_line.get("start_date"),
-            "currency": first_line.get("currency", "CNY")
+            "currency": first_line.get("currency", "CNY"),
+            "tags": first_line.get("tags", "")
         }
 
         if not fund_meta["name"]:
@@ -223,6 +225,7 @@ class OperationHistoryService:
                 name=new_name,
                 start_date=fund_meta["start_date"],
                 currency=fund_meta["currency"],
+                tags=fund_meta.get("tags", ""),
                 total_share=0.0,
                 net_asset_value=1.0,
                 balance=0.0

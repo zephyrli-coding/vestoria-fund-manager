@@ -5,7 +5,7 @@ from app.config import get_settings
 from app.db import engine, Base
 # Import models to register them with Base.metadata
 import app.models
-from app.api import auth, funds, investors, operation_history
+from app.api import auth, funds, investors, operation_history, operations
 
 settings = get_settings()
 
@@ -30,6 +30,7 @@ app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["
 app.include_router(operation_history.router, prefix=f"{settings.API_V1_PREFIX}", tags=["Operation History"])
 app.include_router(funds.router, prefix=f"{settings.API_V1_PREFIX}/funds", tags=["Funds"])
 app.include_router(investors.router, prefix=f"{settings.API_V1_PREFIX}/funds/{{fund_id}}/investors", tags=["Investors"])
+app.include_router(operations.router, prefix=f"{settings.API_V1_PREFIX}/operations", tags=["Operations"])
 
 
 @app.on_event("startup")
@@ -48,11 +49,11 @@ def startup_event():
         if not admin:
             admin = Admin(
                 username="admin",
-                password_hash=AuthService.get_password_hash("admin123")
+                password_hash=AuthService.get_password_hash("[REDACTED_TEST_PASSWORD]")
             )
             db.add(admin)
             db.commit()
-            print("✅ Default admin created: username=admin, password=admin123")
+            print("✅ Default admin created: username=admin, password=[REDACTED_TEST_PASSWORD]")
     finally:
         db.close()
 

@@ -1,6 +1,6 @@
 """Operation repository for database operations."""
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from app.models.operation import Operation
 
@@ -36,6 +36,13 @@ class OperationRepository:
         """Get operations by fund with filters."""
         query = self.db.query(Operation).filter(Operation.fund_id == fund_id)
 
+        # Eager load investor relationships to avoid N+1 queries
+        query = query.options(
+            joinedload(Operation.investor),
+            joinedload(Operation.transfer_from),
+            joinedload(Operation.transfer_to)
+        )
+
         if operation_type:
             query = query.filter(Operation.operation_type == operation_type)
         if investor_id:
@@ -62,3 +69,17 @@ class OperationRepository:
             query = query.filter(Operation.investor_id == investor_id)
 
         return query.count()
+
+    def get_recent(self, limit: int = 10) -> List[Operation]:
+        """Get recent operations across all funds."""
+        return (
+            self.db.query(Operation)
+            .options(
+                joinedload(Operation.investor),
+                joinedload(Operation.transfer_from),
+                joinedload(Operation.transfer_to)
+            )
+            .order_by(desc(Operation.created_at))
+            .limit(limit)
+            .all()
+        )

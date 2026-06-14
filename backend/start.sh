@@ -25,7 +25,9 @@ python init_db.py
 echo ""
 echo "✅ Starting FastAPI server..."
 echo "📖 API docs: http://localhost:8000/docs"
-echo "🔐 Default login: admin / admin123"
+echo "🔐 Default login: admin"
+echo "   Set DEFAULT_ADMIN_PASSWORD env var before first run to fix the password."
+echo "   If not set, a random password will be generated and printed above."
 echo ""
 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

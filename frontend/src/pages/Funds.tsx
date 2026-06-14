@@ -54,7 +54,7 @@ export default function Funds() {
     }
   };
 
-  // Handle import fund from JSONL
+  // Handle import fund from JSONL or ZIP
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
@@ -63,31 +63,54 @@ export default function Funds() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isZip = file.name.toLowerCase().endsWith('.zip');
+
     setImportLoading(true);
     try {
-      const content = await file.text();
-      
-      console.log('Uploading file content length:', content.length);
-      
+      let body: Record<string, any>;
+
+      if (isZip) {
+        // Read ZIP as ArrayBuffer → base64
+        const arrayBuffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+        body = { content: base64, is_zip: true };
+      } else {
+        // Read text file (JSONL) as plain text
+        const content = await file.text();
+        body = { content };
+      }
+
       const response = await fetch(apiUrl('/funds/import'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
+        body: JSON.stringify(body)
       });
 
-      console.log('Response status:', response.status);
-      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('Response result:', result);
-      
+
       if (result.code === 0) {
-        alert(`导入成功！\n基金名称: ${result.data.fund_name}\n操作数: ${result.data.success}/${result.data.total_operations}`);
+        const data = result.data;
+        if (data.is_zip) {
+          const successCount = data.imported_funds;
+          const totalOps = data.total_operations;
+          const successOps = data.success;
+          const failedOps = data.failed;
+          alert(
+            `ZIP 导入完成！\n成功导入 ${successCount} 个基金\n操作: ${successOps}/${totalOps} 成功${failedOps > 0 ? `, ${failedOps} 失败` : ''}`
+          );
+        } else {
+          alert(`导入成功！\n基金名称: ${data.fund_name}\n操作数: ${data.success}/${data.total_operations}`);
+        }
         fetchFunds(); // Refresh fund list
       } else {
         alert('导入失败: ' + (result.message || '未知错误'));
@@ -97,7 +120,6 @@ export default function Funds() {
       alert('导入失败: ' + (error?.message || String(error)));
     } finally {
       setImportLoading(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -317,7 +339,7 @@ export default function Funds() {
           <input
             type="file"
             ref={fileInputRef}
-            accept=".jsonl,.json,.txt"
+            accept=".jsonl,.json,.txt,.zip"
             onChange={handleFileSelect}
             style={{ display: 'none' }}
           />

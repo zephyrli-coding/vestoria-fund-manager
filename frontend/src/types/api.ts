@@ -70,6 +70,11 @@ export interface Operation {
   transfer_from_id: number | null;
   transfer_to_id: number | null;
   created_at: string;
+
+  // Joined investor names (populated via eager load)
+  investor_name: string | null;
+  transfer_from_name: string | null;
+  transfer_to_name: string | null;
 }
 
 export interface ChartData {

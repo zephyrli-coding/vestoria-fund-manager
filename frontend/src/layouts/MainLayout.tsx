@@ -221,10 +221,10 @@ export default function MainLayout() {
         {/* Sidebar - Below Navigation Bar */}
         <aside
           style={{
-            position: isMobile ? 'fixed' : 'relative',
+            position: 'fixed',
             left: 0,
-            top: 0,
-            height: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 64px)',
+            top: '64px',
+            height: 'calc(100vh - 64px)',
             width: sidebarOpen ? '240px' : '72px',
             background: 'var(--bg-primary)',
             borderRight: '1px solid var(--border-color)',
@@ -359,13 +359,14 @@ export default function MainLayout() {
         )}
 
         {/* Main Content */}
-        <main 
-          style={{ 
-            flex: 1, 
-            display: 'flex', 
+        <main
+          style={{
+            flex: 1,
+            display: 'flex',
             flexDirection: 'column',
             minWidth: 0,
-            marginLeft: isMobile ? 0 : undefined,
+            marginLeft: isMobile ? 0 : (sidebarOpen ? '240px' : '72px'),
+            transition: 'margin-left 0.3s ease',
           }}
         >
           {/* Page Content */}
