@@ -144,6 +144,45 @@ export const useFundStore = create<FundStore>((set, get) => ({
     }
   },
 
+  fetchInvestorOperations: async (fundId: number, investorId: number, page: number = 1, pageSize: number = 50) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await request<ApiResponse<PaginatedResponse<Operation>>>(
+        `/funds/${fundId}/investors/${investorId}/operations?page=${page}&page_size=${pageSize}`
+      );
+
+      if (response.code === 0) {
+        return response.data.items;
+      } else {
+        set({ error: response.message || 'Failed to fetch investor operations' });
+        return [];
+      }
+    } catch (error: any) {
+      set({ error: error.message || 'Failed to fetch investor operations' });
+      return [];
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchRecentOperations: async (limit: number = 10) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await request<ApiResponse<PaginatedResponse<Operation>>>(`/operations/recent?limit=${limit}`);
+
+      if (response.code === 0) {
+        return response.data.items;
+      } else {
+        set({ error: response.message || 'Failed to fetch recent operations' });
+        return [];
+      }
+    } catch (error: any) {
+      set({ error: error.message || 'Failed to fetch recent operations' });
+      return [];
+    } finally {
+      set({ loading: false });
+    }
+  },
   fetchChartData: async (fundId: number, startDate?: string, endDate?: string) => {
     set({ loading: true, error: null });
     try {
