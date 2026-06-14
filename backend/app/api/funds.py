@@ -198,6 +198,22 @@ def get_fund_history(
     return ResponseModel(data=result)
 
 
+@router.get("/chart/aggregate", response_model=ResponseModel[dict])
+def get_aggregated_chart_data(
+    tag: Optional[str] = Query(None, description="Filter by tag"),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    service: FundService = Depends(get_fund_service)
+):
+    """Get aggregated chart data across all funds (optionally filtered by tag)."""
+    result = service.get_aggregated_chart_data(
+        tag=tag,
+        start_date=start_date,
+        end_date=end_date
+    )
+    return ResponseModel(data=result)
+
+
 @router.get("/{fund_id}/chart", response_model=ResponseModel[FundChartResponse])
 def get_chart_data(
     fund_id: int,

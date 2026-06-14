@@ -14,13 +14,27 @@
 
 计算累计收益和基金整体情况
 """
+import os
+
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:8000")
+TEST_ADMIN_USERNAME = os.environ.get("TEST_ADMIN_USERNAME")
+TEST_ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD")
+
+if not TEST_ADMIN_USERNAME or not TEST_ADMIN_PASSWORD:
+    raise RuntimeError(
+        "Please set TEST_ADMIN_USERNAME and TEST_ADMIN_PASSWORD environment variables. "
+        "You can create a .env file from .env.example and source it before running tests."
+    )
+
 
 def get_token():
-    resp = requests.post(f"{BASE_URL}/api/v1/auth/login", 
-                        json={"username": "admin", "password": "admin123"})
+    resp = requests.post(
+        f"{BASE_URL}/api/v1/auth/login",
+        json={"username": TEST_ADMIN_USERNAME, "password": TEST_ADMIN_PASSWORD},
+    )
+    resp.raise_for_status()
     return resp.json()["data"]["access_token"]
 
 def print_fund_state(fund_id, headers, label=""):

@@ -2,6 +2,17 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from 'recharts';
+import {
   TrendingUp,
   TrendingDown,
   Wallet,
@@ -11,9 +22,11 @@ import {
   Plus,
   Calendar,
   DollarSign,
+  Clock,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
-import type { Fund, Operation } from '@/types/api';
+import type { Fund, Operation, ChartData } from '@/types/api';
 
 interface StatCardProps {
   title: string;
@@ -96,174 +109,59 @@ function StatCard({ title, value, change, changePositive, icon: Icon, color }: S
   );
 }
 
-interface FundCardProps {
-  fund: Fund;
-}
-
-function FundCard({ fund }: FundCardProps) {
-  const navigate = useNavigate();
-
-  return (
-    <div
-      onClick={() => navigate(`/funds/${fund.id}`)}
-      style={{
-        background: 'var(--bg-primary)',
-        borderRadius: '16px',
-        padding: '20px',
-        border: '1px solid var(--border-color)',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-      }}
-      className="hover-lift"
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Purple box with first character */}
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '20px',
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
-          >
-            {Array.from(fund.name)[0] || '?'}
-          </div>
-          <div>
-            <h4
-              style={{
-                fontSize: '16px',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                margin: 0,
-                marginBottom: '4px',
-              }}
-            >
-              {Array.from(fund.name).slice(1).join('') || fund.name}
-            </h4>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-              成立时间: {fund.start_date}
-            </p>
-          </div>
-        </div>
-        <div
-          style={{
-            padding: '6px 12px',
-            borderRadius: '20px',
-            background:
-              fund.net_asset_value >= 1
-                ? 'rgba(34, 197, 94, 0.1)'
-                : 'rgba(245, 158, 11, 0.1)',
-            color:
-              fund.net_asset_value >= 1 ? 'var(--success-color)' : 'var(--warning-color)',
-            fontSize: '13px',
-            fontWeight: 600,
-          }}
-        >
-          NAV {fund.net_asset_value.toFixed(4)}
-        </div>
-      </div>
-
-      <div
-        style={{
-          marginTop: '20px',
-          paddingTop: '16px',
-          borderTop: '1px solid var(--border-color)',
-        }}
-      >
-        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>
-          总资产
-        </p>
-        <p
-          style={{
-            fontSize: '18px',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            margin: 0,
-          }}
-        >
-          ¥ {Math.floor(fund.balance).toLocaleString('zh-CN')}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
   useDocumentTitle('Vestoria - 仪表盘');
-  const { funds, loading, fetchFunds } = useFundStore();
+  const { funds, loading, fetchFunds, fetchRecentOperations, fetchTagChartData } = useFundStore();
   const [selectedTag, setSelectedTag] = useState('');
-  const [recentOperations] = useState<Operation[]>([
-    {
-      id: 1,
-      fund_id: 1,
-      investor_id: 1,
-      operation_type: 'invest',
-      operation_date: '2024-03-12',
-      amount: 10000,
-      amount_type: 'balance',
-      share: 1000,
-      nav_before: 1.0,
-      nav_after: 1.0,
-      total_share_before: 0,
-      total_share_after: 1000,
-      balance_before: 0,
-      balance_after: 10000,
-      transfer_from_id: null,
-      transfer_to_id: null,
-      created_at: '2024-03-12T10:30:00',
-    },
-    {
-      id: 2,
-      fund_id: 1,
-      investor_id: 2,
-      operation_type: 'redeem',
-      operation_date: '2024-03-11',
-      amount: 5000,
-      amount_type: 'balance',
-      share: 500,
-      nav_before: 1.2,
-      nav_after: 1.2,
-      total_share_before: 2000,
-      total_share_after: 1500,
-      balance_before: 24000,
-      balance_after: 18000,
-      transfer_from_id: null,
-      transfer_to_id: null,
-      created_at: '2024-03-11T14:20:00',
-    },
-    {
-      id: 3,
-      fund_id: 1,
-      investor_id: null,
-      operation_type: 'update_nav',
-      operation_date: '2024-03-10',
-      amount: null,
-      amount_type: null,
-      share: null,
-      nav_before: 1.0,
-      nav_after: 1.2,
-      total_share_before: 2000,
-      total_share_after: 2000,
-      balance_before: 20000,
-      balance_after: 24000,
-      transfer_from_id: null,
-      transfer_to_id: null,
-      created_at: '2024-03-10T09:00:00',
-    },
-  ]);
+  const [recentOperations, setRecentOperations] = useState<Operation[]>([]);
+  const [opsLoading, setOpsLoading] = useState(false);
+  const [tagChartDataCNY, setTagChartDataCNY] = useState<ChartData[]>([]);
+  const [tagChartDataUSD, setTagChartDataUSD] = useState<ChartData[]>([]);
+  const [chartCurrency, setChartCurrency] = useState<'CNY' | 'USD'>('CNY');
+  const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
     fetchFunds();
   }, [fetchFunds]);
+
+  useEffect(() => {
+    const loadOps = async () => {
+      setOpsLoading(true);
+      try {
+        const ops = await fetchRecentOperations(10);
+        setRecentOperations(ops);
+      } catch (error) {
+        console.error('Failed to load recent operations:', error);
+      } finally {
+        setOpsLoading(false);
+      }
+    };
+    loadOps();
+  }, [fetchRecentOperations]);
+
+  // Load aggregate chart data when tag changes
+  useEffect(() => {
+    const loadChart = async () => {
+      setChartLoading(true);
+      try {
+        const data = await fetchTagChartData(selectedTag || undefined);
+        setTagChartDataCNY(data?.balance || []);
+        // @ts-ignore — backend returns balance_usd but type doesn't include it yet
+        setTagChartDataUSD(data?.balance_usd || []);
+      } catch (error) {
+        console.error('Failed to load chart data:', error);
+        setTagChartDataCNY([]);
+        setTagChartDataUSD([]);
+      } finally {
+        setChartLoading(false);
+      }
+    };
+    loadChart();
+  }, [fetchTagChartData, selectedTag]);
+
+  const currentChartData = chartCurrency === 'CNY' ? tagChartDataCNY : tagChartDataUSD;
+  const currencySymbol = chartCurrency === 'CNY' ? '¥' : '$';
 
   // Extract all unique tags (from all funds, before filtering)
   const allTags = useMemo(() => {
@@ -290,14 +188,25 @@ export default function Dashboard() {
   const totalBalanceUSD = filteredFunds.reduce((sum, f) => sum + (f.currency === 'USD' ? f.balance : f.balance / 6.9), 0);
   const totalInvestorCount = filteredFunds.reduce((sum, f) => sum + (f.investor_count || 0), 0);
 
+  // Fund name lookup for operations
+  const fundNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    funds.forEach((f) => map.set(f.id, f.name));
+    return map;
+  }, [funds]);
+
   const getOperationIcon = (type: string) => {
     switch (type) {
       case 'invest':
         return { icon: TrendingUp, color: 'var(--success-color)', label: '申购' };
       case 'redeem':
         return { icon: TrendingDown, color: 'var(--danger-color)', label: '赎回' };
+      case 'transfer':
+        return { icon: ArrowRightLeft, color: '#3b82f6', label: '转账' };
       case 'update_nav':
         return { icon: Activity, color: 'var(--info-color)', label: 'NAV更新' };
+      case 'add_investor':
+        return { icon: Users, color: '#8b5cf6', label: '添加投资者' };
       default:
         return { icon: Activity, color: 'var(--text-muted)', label: type };
     }
@@ -496,6 +405,112 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Aggregate Balance Chart */}
+      {currentChartData.length > 1 && (
+        <div
+          style={{
+            background: 'var(--bg-primary)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid var(--border-color)',
+            marginBottom: '32px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+            }}
+          >
+            <h3
+              style={{
+                fontSize: '18px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: 0,
+              }}
+            >
+              {selectedTag ? `#${selectedTag} 总资产走势` : '总资产走势'}
+            </h3>
+            <button
+              onClick={() => setChartCurrency((c) => (c === 'CNY' ? 'USD' : 'CNY'))}
+              title={`切换为 ${chartCurrency === 'CNY' ? 'USD' : 'CNY'}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-secondary)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <DollarSign size={14} />
+              {chartCurrency}
+            </button>
+          </div>
+
+          <div style={{ width: '100%', height: '260px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={currentChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+                  tickFormatter={(value: string) => value.slice(5)}
+                  axisLine={{ stroke: 'var(--border-color)' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+                  tickFormatter={(value: number) =>
+                    value >= 10000
+                      ? `${Math.floor(value / 10000)}万`
+                      : `${Math.floor(value)}`
+                  }
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                  }}
+                  labelStyle={{ color: 'var(--text-secondary)' }}
+                  formatter={(value: number) => [
+                    `${currencySymbol}${Math.floor(value).toLocaleString('zh-CN')}`,
+                    '总资产'
+                  ]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#6366f1"
+                  strokeWidth={2}
+                  fill="url(#balanceGradient)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: '#6366f1' }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Grid */}
       <div
         style={{
@@ -505,7 +520,14 @@ export default function Dashboard() {
         }}
       >
         {/* Left Column - Funds */}
-        <div>
+        <div
+          style={{
+            background: 'var(--bg-primary)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid var(--border-color)',
+          }}
+        >
           <div
             style={{
               display: 'flex',
@@ -516,13 +538,13 @@ export default function Dashboard() {
           >
             <h2
               style={{
-                fontSize: '20px',
+                fontSize: '18px',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 margin: 0,
               }}
             >
-              我的基金
+              基金列表
             </h2>
             <Link
               to="/funds"
@@ -542,17 +564,14 @@ export default function Dashboard() {
           </div>
 
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
               加载中...
             </div>
           ) : funds.length === 0 ? (
             <div
               style={{
-                background: 'var(--bg-primary)',
-                borderRadius: '16px',
-                padding: '60px',
+                padding: '40px',
                 textAlign: 'center',
-                border: '1px solid var(--border-color)',
               }}
             >
               <Wallet size={48} color="var(--text-muted)" style={{ marginBottom: '16px' }} />
@@ -576,10 +595,126 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {filteredFunds.slice(0, 4).map((fund) => (
-                <FundCard key={fund.id} fund={fund} />
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {filteredFunds.map((fund) => {
+                const navColor = fund.net_asset_value >= 1
+                  ? { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e' }
+                  : { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b' };
+                const tags = fund.tags
+                  ? fund.tags.split(',').map((t) => t.trim()).filter((t) => t)
+                  : [];
+                return (
+                  <div
+                    key={fund.id}
+                    onClick={() => navigate(`/funds/${fund.id}`)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '14px 16px',
+                      cursor: 'pointer',
+                      borderRadius: '12px',
+                      background: 'var(--bg-secondary)',
+                      transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--bg-hover)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--bg-secondary)';
+                    }}
+                  >
+                    {/* Icon */}
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: '16px',
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {Array.from(fund.name)[0] || '?'}
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          marginBottom: '2px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {fund.name}
+                        </span>
+                        {tags.map((tag) => (
+                          <span
+                            key={tag}
+                            style={{
+                              fontSize: '11px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(99, 102, 241, 0.1)',
+                              color: '#6366f1',
+                              fontWeight: 500,
+                            }}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        成立 {fund.start_date}
+                      </span>
+                    </div>
+
+                    {/* NAV badge */}
+                    <div
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '16px',
+                        background: navColor.bg,
+                        color: navColor.text,
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                    >
+                      NAV {fund.net_asset_value.toFixed(4)}
+                    </div>
+
+                    {/* Balance */}
+                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: '100px' }}>
+                      <p
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          margin: 0,
+                        }}
+                      >
+                        {fund.currency === 'USD' ? '$' : '¥'}
+                        {Math.floor(fund.balance).toLocaleString('zh-CN')}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -616,78 +751,95 @@ export default function Dashboard() {
               <Calendar size={18} color="var(--text-muted)" />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {recentOperations.map((op) => {
-                const { icon: Icon, color, label } = getOperationIcon(op.operation_type);
-                return (
-                  <div
-                    key={op.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '14px',
-                      padding: '16px',
-                      borderRadius: '12px',
-                      background: 'var(--bg-secondary)',
-                    }}
-                  >
+            {opsLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                加载中...
+              </div>
+            ) : recentOperations.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <Clock size={40} color="var(--text-muted)" style={{ marginBottom: '12px', opacity: 0.5 }} />
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>暂无操作记录</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {recentOperations.map((op) => {
+                  const { icon: Icon, color, label } = getOperationIcon(op.operation_type);
+                  return (
                     <div
+                      key={op.id}
                       style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '10px',
-                        background: `${color}15`,
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        color: color,
-                        flexShrink: 0,
+                        gap: '14px',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        background: 'var(--bg-secondary)',
                       }}
                     >
-                      <Icon size={20} />
-                    </div>
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          background: `${color}15`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: color,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Icon size={20} />
+                      </div>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          color: 'var(--text-primary)',
-                          margin: '0 0 2px 0',
-                        }}
-                      >
-                        {label}
-                      </p>
-                      <p
-                        style={{
-                          fontSize: '12px',
-                          color: 'var(--text-muted)',
-                          margin: 0,
-                        }}
-                      >
-                        {new Date(op.operation_date).toLocaleDateString('zh-CN')}
-                      </p>
-                    </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                            margin: '0 0 2px 0',
+                          }}
+                        >
+                          {label}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: '12px',
+                            color: 'var(--text-muted)',
+                            margin: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={fundNameMap.get(op.fund_id || 0)}
+                        >
+                          {fundNameMap.get(op.fund_id || 0) || ''}
+                          {fundNameMap.get(op.fund_id || 0) && ' · '}
+                          {new Date(op.operation_date).toLocaleDateString('zh-CN')}
+                        </p>
+                      </div>
 
-                    {op.amount && (
-                      <p
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          color:
-                            op.operation_type === 'invest'
-                              ? 'var(--success-color)'
-                              : 'var(--danger-color)',
-                        }}
-                      >
-                        {op.operation_type === 'invest' ? '+' : '-'}
-                        ¥{op.amount?.toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      {op.amount && (
+                        <p
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            color:
+                              op.operation_type === 'invest'
+                                ? 'var(--success-color)'
+                                : 'var(--danger-color)',
+                          }}
+                        >
+                          {op.operation_type === 'invest' ? '+' : '-'}
+                          ¥{op.amount?.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

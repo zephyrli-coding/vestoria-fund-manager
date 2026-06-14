@@ -1,5 +1,7 @@
 """Initialize database with default admin account."""
 import os
+import secrets
+
 from sqlalchemy.orm import Session
 from app.db import SessionLocal, engine
 from app.models import Admin
@@ -21,13 +23,20 @@ def init_db():
         admin = db.query(Admin).filter(Admin.username == "admin").first()
         if not admin:
             # Create default admin
+            # Prefer explicitly configured password; otherwise generate a secure random one.
+            password = os.environ.get("DEFAULT_ADMIN_PASSWORD")
+            if not password:
+                password = secrets.token_urlsafe(12)
+                print("⚠️  DEFAULT_ADMIN_PASSWORD not set, generating a random password.")
+
             admin = Admin(
                 username="admin",
-                password_hash=AuthService.get_password_hash("admin123")
+                password_hash=AuthService.get_password_hash(password)
             )
             db.add(admin)
             db.commit()
-            print("✅ Default admin created: username=admin, password=admin123")
+            print(f"✅ Default admin created: username=admin, password={password}")
+            print("   Set DEFAULT_ADMIN_PASSWORD env var to use a fixed password.")
         else:
             print("ℹ️  Admin already exists")
     finally:

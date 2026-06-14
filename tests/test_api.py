@@ -1,14 +1,26 @@
 #!/usr/bin/env python3
 """Fund Manager API Test Suite"""
+import os
 import requests
 import json
 from typing import Dict, Optional
 
 
+BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:8000")
+TEST_ADMIN_USERNAME = os.environ.get("TEST_ADMIN_USERNAME")
+TEST_ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD")
+
+if not TEST_ADMIN_USERNAME or not TEST_ADMIN_PASSWORD:
+    raise RuntimeError(
+        "Please set TEST_ADMIN_USERNAME and TEST_ADMIN_PASSWORD environment variables. "
+        "You can create a .env file from .env.example and source it before running tests."
+    )
+
+
 class FundManagerTester:
     """Test suite for Fund Manager API"""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = BASE_URL):
         self.base_url = base_url
         self.token: Optional[str] = None
         self.test_results = []
@@ -53,7 +65,7 @@ class FundManagerTester:
         print("\n🔐 Testing Authentication")
 
         # 1. 正确登录
-        if self.login("admin", "admin123"):
+        if self.login(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD):
             self.log_result("Login with correct credentials", True)
         else:
             self.log_result("Login with correct credentials", False)

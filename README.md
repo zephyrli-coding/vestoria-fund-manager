@@ -23,6 +23,7 @@ cd fund_manager
 cp .env.example .env
 # 编辑 .env，设置 SECRET_KEY（重要！）
 # 生成密钥: openssl rand -hex 32
+# 设置默认管理员密码: DEFAULT_ADMIN_PASSWORD
 
 # 3. 启动服务
 docker compose up -d --build
@@ -30,7 +31,7 @@ docker compose up -d --build
 # 4. 访问系统
 # 前端: http://localhost:20260
 # API 文档: http://localhost:20260/docs
-# 默认账号: admin / admin123
+# 默认账号: admin（密码由 DEFAULT_ADMIN_PASSWORD 设置，未设置则随机生成并打印在日志中）
 ```
 
 **常用命令：**
@@ -92,7 +93,7 @@ python init_db.py
 **后端服务：**
 - API: http://localhost:8000
 - API 文档: http://localhost:8000/docs
-- 默认账号: `admin` / `admin123`
+- 默认账号: `admin`（首次运行会在终端打印密码，或提前设置 `DEFAULT_ADMIN_PASSWORD` 固定密码）
 
 #### 2. 启动前端
 

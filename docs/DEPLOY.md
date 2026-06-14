@@ -261,4 +261,4 @@ A: `docker-compose logs -f backend` 或 `tail -f backend/app.log`
 
 - 前端地址：`http://your-domain.com`
 - API 文档：`http://your-domain.com/api/v1/docs` (Swagger UI)
-- 默认账号：`admin` / `admin123` （部署后请立即修改密码）
+- 默认账号：`admin`（密码由 `DEFAULT_ADMIN_PASSWORD` 环境变量设置；未设置时首次启动会随机生成并打印在日志中。部署后请立即修改密码）
