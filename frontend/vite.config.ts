@@ -12,12 +12,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-    },
+    // 前端直接使用完整 URL 访问后端，不使用代理
   },
   build: {
     outDir: 'dist',

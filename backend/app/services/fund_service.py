@@ -207,3 +207,19 @@ class FundService:
             "balance": [{"date": h.history_date, "value": h.balance} for h in histories],
             "share": [{"date": h.history_date, "value": h.total_share} for h in histories]
         }
+
+    def get_aggregated_chart_data(
+        self,
+        tag: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, List[Dict]]:
+        """Get aggregated chart data across funds (optionally filtered by tag)."""
+        results = self.fund_repo.get_aggregated_chart_data(tag, start_date, end_date)
+
+        return {
+            "nav": [],  # NAV doesn't make sense for aggregate across funds
+            "balance": [{"date": r["date"], "value": r["balance_cny"]} for r in results],
+            "balance_usd": [{"date": r["date"], "value": r["balance_usd"]} for r in results],
+            "share": [{"date": r["date"], "value": r["total_share"]} for r in results]
+        }
