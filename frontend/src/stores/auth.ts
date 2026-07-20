@@ -1,6 +1,8 @@
 import { create } from 'zustand';
-import { apiUrl } from '@/config/api';
+import { apiUrl, redirectToAuthLogin } from '@/config/api';
 import type { User } from '@/types/api';
+
+const TOKEN_KEY = 'token';
 
 // 全局类型
 interface AuthState {
@@ -10,60 +12,50 @@ interface AuthState {
 }
 
 interface AuthActions {
-  login: (username: string, password: string) => Promise<void>;
+  login: () => void;
+  handleCallback: (code: string) => Promise<void>;
   logout: () => void;
-  checkAuth: () => void;
+  checkAuth: () => Promise<void>;
 }
 
 interface AuthStore extends AuthState, AuthActions {}
 
 // 创建 store
 export const useAuthStore = create<AuthStore>((set) => ({
-  token: localStorage.getItem('token') || null,
+  token: localStorage.getItem(TOKEN_KEY) || null,
   user: null,
   isAuthenticated: false,
 
-  login: async (username, password) => {
-    try {
-      // 调用 API
-      const response = await fetch(apiUrl('/auth/login'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+  login: () => {
+    redirectToAuthLogin();
+  },
+
+  handleCallback: async (code: string) => {
+    const response = await fetch(apiUrl(`/auth/callback?code=${encodeURIComponent(code)}`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const data = await response.json();
+
+    if (data.code === 0) {
+      const token = data.data.access_token;
+      localStorage.setItem(TOKEN_KEY, token);
+
+      set({
+        token,
+        user: data.data.user,
+        isAuthenticated: true,
       });
-
-      const data = await response.json();
-
-      if (data.code === 0) {
-        const token = data.data.access_token;
-        
-        // 保存 token
-        localStorage.setItem('token', token);
-        
-        // 解析 user（需要从 me 接口获取）
-        const meResponse = await fetch(apiUrl('/auth/me'), {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        const meData = await meResponse.json();
-        
-        set({
-          token,
-          user: meData.data,
-          isAuthenticated: true,
-        });
-      } else {
-        throw new Error(data.message || 'Login failed');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+    } else {
+      throw new Error(data.message || '登录失败');
     }
   },
 
   logout: () => {
     // 清除 token
-    localStorage.removeItem('token');
-    
+    localStorage.removeItem(TOKEN_KEY);
+
     set({
       token: null,
       user: null,
@@ -72,7 +64,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   checkAuth: async () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
       set({ token: null, user: null, isAuthenticated: false });
       return;
@@ -89,12 +81,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
         set({ token, user: data.data, isAuthenticated: true });
       } else {
         // Token 无效，清除它
-        localStorage.removeItem('token');
+        localStorage.removeItem(TOKEN_KEY);
         set({ token: null, user: null, isAuthenticated: false });
       }
     } catch (error) {
       // Token 验证失败，清除它
-      localStorage.removeItem('token');
+      localStorage.removeItem(TOKEN_KEY);
       set({ token: null, user: null, isAuthenticated: false });
     }
   },

@@ -12,7 +12,7 @@ from app.schemas.operation import (
     InvestRequest, RedeemRequest, TransferRequest
 )
 from app.schemas.auth import (
-    LoginRequest, LoginResponse, MeResponse
+    CallbackResponse, MeResponse
 )
 from app.schemas.common import (
     ResponseModel, ErrorResponse, PaginatedResponse
@@ -29,7 +29,7 @@ __all__ = [
     "OperationResponse", "OperationListResponse",
     "InvestRequest", "RedeemRequest", "TransferRequest",
     # Auth
-    "LoginRequest", "LoginResponse", "MeResponse",
+    "CallbackResponse", "MeResponse",
     # Common
     "ResponseModel", "ErrorResponse", "PaginatedResponse",
 ]

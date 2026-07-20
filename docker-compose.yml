@@ -16,6 +16,12 @@ services:
       - DATABASE_URL=sqlite:////app/data/fund_manager.db
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_DAYS=7
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://host.docker.internal:20263}
+      - AUTH_SERVICE_JWKS_URL=${AUTH_SERVICE_JWKS_URL:-http://host.docker.internal:20263/.well-known/jwks.json}
+      - AUTH_SERVICE_ISSUER=${AUTH_SERVICE_ISSUER:-http://localhost:20263}
+      - AUTH_CLIENT_ID=${AUTH_CLIENT_ID:-vestoria}
+      - AUTH_CLIENT_SECRET=${AUTH_CLIENT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:20260}
     volumes:
       - ${DATA_PATH:-./data}:/app/data
     networks:
@@ -25,6 +31,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api/v1
+        - VITE_AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://localhost:20263}
+        - VITE_AUTH_CLIENT_ID=${AUTH_CLIENT_ID:-vestoria}
     container_name: fund-manager-frontend
     restart: unless-stopped
     ports:
