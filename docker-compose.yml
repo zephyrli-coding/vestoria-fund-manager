@@ -33,7 +33,7 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=/api/v1
-        - VITE_AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://localhost:20263}
+        - VITE_AUTH_SERVICE_URL=${AUTH_SERVICE_PUBLIC_URL:-http://localhost:20263}
         - VITE_AUTH_CLIENT_ID=${AUTH_CLIENT_ID:-vestoria}
     container_name: fund-manager-frontend
     restart: unless-stopped
