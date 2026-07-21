@@ -100,7 +100,8 @@ def auth_callback(code: str, db: Session = Depends(get_db)):
 
     admin = db.query(Admin).filter(Admin.auth_user_id == str(auth_user_id)).first()
     if not admin:
-        username = nickname or f"{email.split('@')[0]}-{uuid4().hex[:6]}"
+        base = nickname or email.split("@")[0]
+        username = f"{base}-{uuid4().hex[:6]}"
         admin = Admin(
             auth_user_id=str(auth_user_id),
             username=username,
