@@ -1,6 +1,6 @@
 """Authentication API routes."""
 import os
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, Security
@@ -97,10 +97,10 @@ def auth_callback(code: str, db: Session = Depends(get_db)):
     auth_user_id = UUID(userinfo["sub"])
     email = userinfo["email"]
     nickname = userinfo.get("nickname")
-    username = nickname or email.split("@")[0]
 
     admin = db.query(Admin).filter(Admin.auth_user_id == str(auth_user_id)).first()
     if not admin:
+        username = nickname or f"{email.split('@')[0]}-{uuid4().hex[:6]}"
         admin = Admin(
             auth_user_id=str(auth_user_id),
             username=username,
@@ -111,8 +111,7 @@ def auth_callback(code: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(admin)
     else:
-        if admin.username != username or admin.email != email:
-            admin.username = username
+        if admin.email != email:
             admin.email = email
             db.commit()
             db.refresh(admin)
