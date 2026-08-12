@@ -45,6 +45,13 @@ def decode_auth_token(token: str) -> dict:
 def get_auth_user_id(token: str) -> Optional[UUID]:
     try:
         payload = decode_auth_token(token)
+        response = httpx.get(
+            f"{AUTH_SERVICE_URL}/oauth/userinfo",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10.0,
+        )
+        if response.status_code != 200:
+            return None
         return UUID(payload["sub"])
-    except (JWTError, KeyError, ValueError):
+    except (JWTError, KeyError, ValueError, httpx.HTTPError):
         return None

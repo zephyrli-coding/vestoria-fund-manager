@@ -10,6 +10,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        HTTP_PROXY: ${DOCKER_BUILD_HTTP_PROXY:-http://host.docker.internal:1087}
+        HTTPS_PROXY: ${DOCKER_BUILD_HTTPS_PROXY:-http://host.docker.internal:1087}
     container_name: fund-manager-backend
     restart: unless-stopped
     environment:

@@ -30,3 +30,16 @@ export function redirectToAuthLogin() {
   });
   window.location.href = `${AUTH_SERVICE_URL}/oauth/authorize?${params.toString()}`;
 }
+
+export function redirectToGlobalLogout() {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `${AUTH_SERVICE_URL}/auth/logout`;
+  const returnTo = document.createElement('input');
+  returnTo.type = 'hidden';
+  returnTo.name = 'return_to';
+  returnTo.value = `${window.location.origin}/login`;
+  form.appendChild(returnTo);
+  document.body.appendChild(form);
+  form.submit();
+}

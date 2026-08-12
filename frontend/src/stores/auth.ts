@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiUrl, redirectToAuthLogin } from '@/config/api';
+import { apiUrl, redirectToAuthLogin, redirectToGlobalLogout } from '@/config/api';
 import type { User } from '@/types/api';
 
 const TOKEN_KEY = 'token';
@@ -61,6 +61,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       user: null,
       isAuthenticated: false,
     });
+    redirectToGlobalLogout();
   },
 
   checkAuth: async () => {
