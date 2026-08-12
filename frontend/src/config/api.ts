@@ -38,7 +38,7 @@ export function redirectToGlobalLogout() {
   const returnTo = document.createElement('input');
   returnTo.type = 'hidden';
   returnTo.name = 'return_to';
-  returnTo.value = `${window.location.origin}/login`;
+  returnTo.value = `${window.location.origin}/login?logged_out=1`;
   form.appendChild(returnTo);
   document.body.appendChild(form);
   form.submit();

@@ -6,11 +6,12 @@ import { useAuthStore } from '@/stores/auth';
 export default function Login() {
   useDocumentTitle('Vestoria - 登录');
   const { login } = useAuthStore();
+  const loggedOut = new URLSearchParams(window.location.search).get('logged_out') === '1';
 
   useEffect(() => {
     // 自动跳转到统一认证中心
-    login();
-  }, [login]);
+    if (!loggedOut) login();
+  }, [login, loggedOut]);
 
   return (
     <div
@@ -80,7 +81,7 @@ export default function Login() {
               maxWidth: '400px',
             }}
           >
-            正在跳转统一账号中心...
+            {loggedOut ? '你已退出统一账号，其他站点的登录状态也已失效。' : '正在跳转统一账号中心...'}
           </p>
         </div>
       </div>
@@ -97,7 +98,7 @@ export default function Login() {
       >
         <div style={{ width: '100%', maxWidth: '420px', textAlign: 'center' }}>
           <p style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
-            如果页面没有自动跳转，请
+            {loggedOut ? '如需继续使用，请' : '如果页面没有自动跳转，请'}
             <button
               onClick={login}
               style={{
@@ -109,7 +110,7 @@ export default function Login() {
                 textDecoration: 'underline',
               }}
             >
-              点击这里登录
+              {loggedOut ? '重新登录' : '点击这里登录'}
             </button>
           </p>
         </div>
