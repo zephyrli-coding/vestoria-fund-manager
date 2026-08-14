@@ -100,6 +100,27 @@ export default function MainLayout() {
               基金管理系统
             </div>
           </div>
+          <button
+            onClick={logout}
+            title="退出所有站点"
+            style={{
+              height: '40px',
+              padding: '0 12px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-secondary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500,
+            }}
+          >
+            <LogOut size={16} />
+            退出登录
+          </button>
         </div>
 
         {/* Sidebar Toggle Button - Right of Logo */}

@@ -1,13 +1,8 @@
 # 后端 Dockerfile
 
-FROM python:3.11-slim
+FROM compound-python-backend:3.11
 
 WORKDIR /app
-
-# 安装系统依赖
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
 COPY requirements.txt .

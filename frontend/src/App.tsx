@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 // Pages
 import Login from '@/pages/Login';
+import AuthCallback from '@/pages/AuthCallback';
 import Dashboard from '@/pages/Dashboard';
 import Funds from '@/pages/Funds';
 import FundDetail from '@/pages/FundDetail';
@@ -52,8 +53,9 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* 公共路由 - 登录页 */}
+        {/* 公共路由 - 登录页 & OAuth 回调 */}
         <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* 受保护的路由 */}
         {isAuthenticated ? (
