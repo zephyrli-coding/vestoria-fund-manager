@@ -1,8 +1,6 @@
 import { create } from 'zustand';
-import { apiUrl, redirectToAuthLogin, redirectToGlobalLogout } from '@/config/api';
+import { apiUrl, redirectToAuthLogin, redirectToGlobalLogout, TOKEN_KEY } from '@/config/api';
 import type { User } from '@/types/api';
-
-const TOKEN_KEY = 'token';
 
 // 全局类型
 interface AuthState {

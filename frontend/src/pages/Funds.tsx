@@ -14,7 +14,7 @@ import {
   Upload
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
-import { apiUrl } from '@/config/api';
+import { apiUrl, TOKEN_KEY } from '@/config/api';
 import type { Fund } from '@/types/api';
 
 export default function Funds() {
@@ -131,7 +131,7 @@ export default function Funds() {
     setExportLoading(true);
     try {
       // Get token from localStorage
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem(TOKEN_KEY);
       
       // Build export URL with current filters
       let url = apiUrl('/funds/export');

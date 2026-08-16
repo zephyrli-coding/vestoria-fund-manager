@@ -17,6 +17,7 @@ import DataImportExport from '@/pages/DataImportExport';
 import MainLayout from '@/layouts/MainLayout';
 
 import { useAuthStore } from '@/stores/auth';
+import { APP_BASE_PATH } from '@/config/api';
 
 function App() {
   const { isAuthenticated, checkAuth } = useAuthStore();
@@ -51,7 +52,7 @@ function App() {
   }
 
   return (
-    <Router>
+    <Router basename={APP_BASE_PATH}>
       <Routes>
         {/* 公共路由 - 登录页 & OAuth 回调 */}
         <Route path="/login" element={<Login />} />

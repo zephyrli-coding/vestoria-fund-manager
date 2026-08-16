@@ -3,7 +3,10 @@
 // API 基础配置
 // 开发环境直接连接后端，生产环境通过 Nginx 转发
 const isDev = import.meta.env?.DEV ?? true;
-export const API_BASE_URL = isDev ? 'http://localhost:8000/api/v1' : '/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000/api/v1' : '/api/v1');
+export const APP_BASE_PATH = import.meta.env.BASE_URL;
+export const TOKEN_KEY = 'vestoria_fund_token';
+export const OAUTH_STATE_KEY = 'vestoria_fund_oauth_state';
 
 export const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:20263';
 export const AUTH_CLIENT_ID = import.meta.env.VITE_AUTH_CLIENT_ID || 'vestoria';
@@ -16,12 +19,12 @@ export function apiUrl(path: string): string {
 }
 
 export function getRedirectUri(): string {
-  return `${window.location.origin}/auth/callback`;
+  return `${window.location.origin}${APP_BASE_PATH}auth/callback`;
 }
 
 export function redirectToAuthLogin() {
   const state = Math.random().toString(36).substring(2);
-  sessionStorage.setItem('oauth_state', state);
+  sessionStorage.setItem(OAUTH_STATE_KEY, state);
   const params = new URLSearchParams({
     client_id: AUTH_CLIENT_ID,
     response_type: 'code',
@@ -38,7 +41,7 @@ export function redirectToGlobalLogout() {
   const returnTo = document.createElement('input');
   returnTo.type = 'hidden';
   returnTo.name = 'return_to';
-  returnTo.value = `${window.location.origin}/login?logged_out=1`;
+  returnTo.value = `${window.location.origin}${APP_BASE_PATH}login?logged_out=1`;
   form.appendChild(returnTo);
   document.body.appendChild(form);
   form.submit();
