@@ -15,10 +15,7 @@ interface FundActions {
   fetchFundById: (id: number) => Promise<Fund | null>;
   fetchInvestors: (fundId: number) => Promise<Investor[]>;
   fetchOperations: (fundId: number, page?: number, pageSize?: number) => Promise<Operation[]>;
-  fetchInvestorOperations: (fundId: number, investorId: number, page?: number, pageSize?: number) => Promise<Operation[]>;
-  fetchRecentOperations: (limit?: number) => Promise<Operation[]>;
   fetchChartData: (fundId: number, startDate?: string, endDate?: string) => Promise<FundChartData | null>;
-  fetchTagChartData: (tag?: string, startDate?: string, endDate?: string) => Promise<FundChartData | null>;
   addInvestor: (fundId: number, name: string, date?: string) => Promise<void>;
   invest: (fundId: number, investorId: number, amount: number, date: string) => Promise<void>;
   redeem: (fundId: number, investorId: number, amount: number, amountType: 'share' | 'balance', date: string) => Promise<void>;
@@ -186,7 +183,6 @@ export const useFundStore = create<FundStore>((set, get) => ({
       set({ loading: false });
     }
   },
-
   fetchChartData: async (fundId: number, startDate?: string, endDate?: string) => {
     set({ loading: true, error: null });
     try {
@@ -195,7 +191,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       if (startDate) params.push(`start_date=${startDate}`);
       if (endDate) params.push(`end_date=${endDate}`);
       if (params.length > 0) url += '?' + params.join('&');
-
+      
       const response = await request<ApiResponse<FundChartData>>(url);
 
       if (response.code === 0) {
@@ -206,32 +202,6 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to fetch chart data' });
-      return null;
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  fetchTagChartData: async (tag?: string, startDate?: string, endDate?: string) => {
-    set({ loading: true, error: null });
-    try {
-      let url = '/funds/chart/aggregate';
-      const params: string[] = [];
-      if (tag) params.push(`tag=${encodeURIComponent(tag)}`);
-      if (startDate) params.push(`start_date=${startDate}`);
-      if (endDate) params.push(`end_date=${endDate}`);
-      if (params.length > 0) url += '?' + params.join('&');
-
-      const response = await request<ApiResponse<FundChartData>>(url);
-
-      if (response.code === 0) {
-        return response.data;
-      } else {
-        set({ error: response.message || 'Failed to fetch tag chart data' });
-        return null;
-      }
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to fetch tag chart data' });
       return null;
     } finally {
       set({ loading: false });
