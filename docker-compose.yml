@@ -11,8 +11,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        HTTP_PROXY: ${DOCKER_BUILD_HTTP_PROXY:-http://host.docker.internal:1087}
-        HTTPS_PROXY: ${DOCKER_BUILD_HTTPS_PROXY:-http://host.docker.internal:1087}
+        HTTP_PROXY: ${DOCKER_BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${DOCKER_BUILD_HTTPS_PROXY:-}
     container_name: fund-manager-backend
     restart: unless-stopped
     environment:
@@ -29,13 +29,15 @@ services:
       - ${DATA_PATH:-./data}:/app/data
     networks:
       - fund-manager-network
+      - compound-internal
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=/api/v1
+        - VITE_API_URL=${VITE_API_URL:-/api/v1}
+        - VITE_BASE_PATH=${VITE_BASE_PATH:-/}
         - VITE_AUTH_SERVICE_URL=${AUTH_SERVICE_PUBLIC_URL:-http://localhost:20263}
         - VITE_AUTH_CLIENT_ID=${AUTH_CLIENT_ID:-vestoria}
     container_name: fund-manager-frontend
@@ -48,7 +50,14 @@ services:
       - backend
     networks:
       - fund-manager-network
+      - compound-edge
 
 networks:
   fund-manager-network:
     driver: bridge
+  compound-internal:
+    name: compound-internal
+    external: true
+  compound-edge:
+    name: compound-edge
+    external: true

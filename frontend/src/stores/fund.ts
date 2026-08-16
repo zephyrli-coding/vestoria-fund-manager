@@ -1,4 +1,4 @@
-import { apiUrl } from '@/config/api';
+import { apiUrl, TOKEN_KEY } from '@/config/api';
 import { create } from 'zustand';
 import type { Fund, FundCreate, FundUpdate, PaginatedResponse, FundChartData, Investor, Operation, ApiResponse } from '@/types/api';
 
@@ -33,7 +33,7 @@ interface FundActions {
 interface FundStore extends FundState, FundActions {}
 
 // 辅助函数：获取 token
-const getToken = () => localStorage.getItem('token');
+const getToken = () => localStorage.getItem(TOKEN_KEY);
 
 // 辅助函数：API 请求
 const request = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {

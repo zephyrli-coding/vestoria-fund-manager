@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
+import { OAUTH_STATE_KEY } from '@/config/api';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ export default function AuthCallback() {
   useEffect(() => {
     const code = searchParams.get('code');
     const state = searchParams.get('state');
-    const savedState = sessionStorage.getItem('oauth_state');
+    const savedState = sessionStorage.getItem(OAUTH_STATE_KEY);
 
     if (!code) {
       setError('缺少授权码');
@@ -22,7 +23,7 @@ export default function AuthCallback() {
       setError('state 校验失败，请重新登录');
       return;
     }
-    sessionStorage.removeItem('oauth_state');
+    sessionStorage.removeItem(OAUTH_STATE_KEY);
 
     handleCallback(code)
       .then(() => navigate('/'))

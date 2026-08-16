@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { TOKEN_KEY } from '@/config/api';
 import {
   LineChart,
   Line,
@@ -708,7 +709,7 @@ export default function InvestorDetail() {
               try {
                 await fetch(apiUrl(`/funds/${id}/investors/${investorId}/invest`), {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
                   body: JSON.stringify({ amount: parseFloat(investAmount), date: investDate }),
                 });
                 setShowInvestModal(false);
@@ -812,7 +813,7 @@ export default function InvestorDetail() {
               try {
                 await fetch(apiUrl(`/funds/${id}/investors/${investorId}/redeem`), {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
                   body: JSON.stringify({ amount: parseFloat(redeemAmount), amount_type: redeemType, date: redeemDate }),
                 });
                 setShowRedeemModal(false);
