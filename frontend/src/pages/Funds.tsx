@@ -14,7 +14,7 @@ import {
   Upload
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
-import { apiUrl, TOKEN_KEY } from '@/config/api';
+import { apiFetch, apiUrl } from '@/config/api';
 import type { Fund } from '@/types/api';
 
 export default function Funds() {
@@ -85,7 +85,7 @@ export default function Funds() {
         body = { content };
       }
 
-      const response = await fetch(apiUrl('/funds/import'), {
+      const response = await apiFetch('/funds/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -130,25 +130,15 @@ export default function Funds() {
   const handleExport = async () => {
     setExportLoading(true);
     try {
-      // Get token from localStorage
-      const token = localStorage.getItem(TOKEN_KEY);
-      
       // Build export URL with current filters
-      let url = apiUrl('/funds/export');
+      let url = '/funds/export';
       if (selectedTag) {
         url += `?tag=${encodeURIComponent(selectedTag)}`;
       }
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}) // Empty body = export all (or filtered by tag)
       });
 

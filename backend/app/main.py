@@ -1,11 +1,14 @@
 """FastAPI application entry point."""
-from fastapi import FastAPI
+from urllib.parse import urlsplit
+
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import engine, Base
 # Import models to register them with Base.metadata
 import app.models
 from app.api import auth, funds, investors, operation_history, operations
+from app.api.auth import get_current_admin
 
 settings = get_settings()
 
@@ -19,7 +22,9 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=[
+        f"{urlsplit(settings.FRONTEND_URL).scheme}://{urlsplit(settings.FRONTEND_URL).netloc}"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,10 +32,11 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["Authentication"])
-app.include_router(operation_history.router, prefix=f"{settings.API_V1_PREFIX}", tags=["Operation History"])
-app.include_router(funds.router, prefix=f"{settings.API_V1_PREFIX}/funds", tags=["Funds"])
-app.include_router(investors.router, prefix=f"{settings.API_V1_PREFIX}/funds/{{fund_id}}/investors", tags=["Investors"])
-app.include_router(operations.router, prefix=f"{settings.API_V1_PREFIX}/operations", tags=["Operations"])
+protected = [Depends(get_current_admin)]
+app.include_router(operation_history.router, prefix=f"{settings.API_V1_PREFIX}", tags=["Operation History"], dependencies=protected)
+app.include_router(funds.router, prefix=f"{settings.API_V1_PREFIX}/funds", tags=["Funds"], dependencies=protected)
+app.include_router(investors.router, prefix=f"{settings.API_V1_PREFIX}/funds/{{fund_id}}/investors", tags=["Investors"], dependencies=protected)
+app.include_router(operations.router, prefix=f"{settings.API_V1_PREFIX}/operations", tags=["Operations"], dependencies=protected)
 
 
 @app.on_event("startup")

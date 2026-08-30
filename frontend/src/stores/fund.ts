@@ -1,4 +1,4 @@
-import { apiUrl, TOKEN_KEY } from '@/config/api';
+import { apiFetch } from '@/config/api';
 import { create } from 'zustand';
 import type { Fund, FundCreate, FundUpdate, PaginatedResponse, FundChartData, Investor, Operation, ApiResponse } from '@/types/api';
 
@@ -32,19 +32,14 @@ interface FundActions {
 
 interface FundStore extends FundState, FundActions {}
 
-// 辅助函数：获取 token
-const getToken = () => localStorage.getItem(TOKEN_KEY);
-
 // 辅助函数：API 请求
 const request = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  const token = getToken();
   const headers = {
     'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
     ...options.headers,
   };
 
-  const response = await fetch(apiUrl(endpoint), {
+  const response = await apiFetch(endpoint, {
     ...options,
     headers,
   });
