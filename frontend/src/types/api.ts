@@ -12,6 +12,8 @@ export interface User {
   username: string;
   email: string;
   created_at?: string;
+  role: 'viewer' | 'editor';
+  can_edit: boolean;
 }
 
 export interface Fund {

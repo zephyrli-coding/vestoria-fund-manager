@@ -19,7 +19,7 @@ export default function AuthCallback() {
       return;
     }
 
-    if (state && savedState && state !== savedState) {
+    if (!state || !savedState || state !== savedState) {
       setError('state 校验失败，请重新登录');
       return;
     }

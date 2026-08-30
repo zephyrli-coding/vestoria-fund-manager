@@ -25,11 +25,33 @@ services:
       - AUTH_CLIENT_ID=${AUTH_CLIENT_ID:-vestoria}
       - AUTH_CLIENT_SECRET=${AUTH_CLIENT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:20260}
+      - REDIS_URL=redis://session-redis:6379/0
+      - SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-604800}
+      - SESSION_COOKIE_PATH=${SESSION_COOKIE_PATH:-}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-}
     volumes:
       - ${DATA_PATH:-./data}:/app/data
     networks:
       - fund-manager-network
       - compound-internal
+    depends_on:
+      session-redis:
+        condition: service_healthy
+
+  session-redis:
+    image: redis:7-alpine
+    container_name: fund-manager-session-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - fund_session_data:/data
+    networks:
+      - fund-manager-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build:
@@ -61,3 +83,6 @@ networks:
   compound-edge:
     name: compound-edge
     external: true
+
+volumes:
+  fund_session_data:

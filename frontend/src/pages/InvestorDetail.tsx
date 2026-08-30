@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { TOKEN_KEY } from '@/config/api';
 import {
   LineChart,
   Line,
@@ -25,7 +24,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useFundStore } from '@/stores/fund';
-import { apiUrl } from '@/config/api';
+import { apiFetch, apiUrl } from '@/config/api';
 import type { Fund, Investor } from '@/types/api';
 
 // 货币格式化工具
@@ -707,9 +706,9 @@ export default function InvestorDetail() {
               if (!investAmount || !id || !investorId) return;
               setInvesting(true);
               try {
-                await fetch(apiUrl(`/funds/${id}/investors/${investorId}/invest`), {
+                await apiFetch(`/funds/${id}/investors/${investorId}/invest`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ amount: parseFloat(investAmount), date: investDate }),
                 });
                 setShowInvestModal(false);
@@ -811,9 +810,9 @@ export default function InvestorDetail() {
               if (!redeemAmount || !id || !investorId) return;
               setRedeeming(true);
               try {
-                await fetch(apiUrl(`/funds/${id}/investors/${investorId}/redeem`), {
+                await apiFetch(`/funds/${id}/investors/${investorId}/redeem`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ amount: parseFloat(redeemAmount), amount_type: redeemType, date: redeemDate }),
                 });
                 setShowRedeemModal(false);

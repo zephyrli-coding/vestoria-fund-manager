@@ -5,8 +5,8 @@
 const isDev = import.meta.env?.DEV ?? true;
 export const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8000/api/v1' : '/api/v1');
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
-export const TOKEN_KEY = 'vestoria_fund_token';
 export const OAUTH_STATE_KEY = 'vestoria_fund_oauth_state';
+export const CSRF_COOKIE_NAME = 'vestoria_fund_csrf';
 
 export const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:20263';
 export const AUTH_CLIENT_ID = import.meta.env.VITE_AUTH_CLIENT_ID || 'vestoria';
@@ -18,12 +18,34 @@ export function apiUrl(path: string): string {
   return `${API_BASE_URL}${cleanPath}`;
 }
 
+function getCookie(name: string): string {
+  const prefix = `${encodeURIComponent(name)}=`;
+  const item = document.cookie.split('; ').find((cookie) => cookie.startsWith(prefix));
+  return item ? decodeURIComponent(item.slice(prefix.length)) : '';
+}
+
+export function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers);
+  const method = (options.method || 'GET').toUpperCase();
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const csrf = getCookie(CSRF_COOKIE_NAME);
+    if (csrf) headers.set('X-CSRF-Token', csrf);
+  }
+  return fetch(apiUrl(path), {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+}
+
 export function getRedirectUri(): string {
   return `${window.location.origin}${APP_BASE_PATH}auth/callback`;
 }
 
 export function redirectToAuthLogin() {
-  const state = Math.random().toString(36).substring(2);
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  const state = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
   sessionStorage.setItem(OAUTH_STATE_KEY, state);
   const params = new URLSearchParams({
     client_id: AUTH_CLIENT_ID,
