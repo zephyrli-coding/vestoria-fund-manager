@@ -1,130 +1,32 @@
-# Fund Manager Backend
+# Fund Backend
 
-FastAPI backend for the fund management system.
+FastAPI + SQLAlchemy，入口为 `app/main.py`，主要分层为 API、service、repository、model。业务 SQLite 与 Redis BFF 会话分离。
 
-## Setup
+## 本地开发
 
-```bash
-# Install dependencies using uv
-cd backend
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
-
-# Initialize database
-python init_db.py
-
-# Migrate existing data (optional)
-python migrate_data.py
-```
-
-## Run
+优先使用仓库根目录 Docker Compose，完整准备步骤见[根 README](../README.md)。需要单独热更新时，在本目录安装 `requirements.txt` 的依赖，并显式配置测试数据库、Redis、Auth 内部 URL、issuer、client secret 和前端地址后启动：
 
 ```bash
-# Development server
-uvicorn app.main:app --reload
-
-# Or use the start script
-./start.sh
+uvicorn app.main:app --reload --port 8000
 ```
 
-## Quick Start
+此时后端自身的 Swagger 为 `http://localhost:8000/docs`。这个地址不等于生产公开 API，也不保证通过前端 Nginx 开放。
 
-```bash
-cd backend
-./start.sh
-```
+不要把 `init_db.py`、历史数据导入脚本或 `start.sh` 当作无副作用的生产启动/升级步骤；既有库迁移见[migrations](migrations/README.md)。
 
-The start script will:
-1. Create virtual environment with `uv venv` (if needed)
-2. Install dependencies with `uv pip install`
-3. Initialize database
-4. Start the FastAPI server
+## 当前认证
 
-## API Documentation
+- 浏览器页面跳转 Auth，回调后由 `POST /api/v1/auth/callback?code=...` 建立 BFF 会话。
+- `GET /api/v1/auth/me` 返回当前业务用户；`POST /api/v1/auth/logout` 清除本应用会话。
+- 浏览器不获得 access/refresh token，不提供旧的 `/auth/login` 密码登录。
+- Fund client 是 `vestoria`；viewer 读取，editor 读写，全局 `auth-service:admin` 具备完整权限。所有角色均需要邮箱已验证。
+- 写请求校验 `X-CSRF-Token`，认证状态从 Auth userinfo 获取。
+- `admins` 表是本地投影，`password_hash` 对 SSO 用户可空。
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+API 常用前缀为 `/api/v1/funds` 及其 investors、操作历史等子资源。生产经 edge 加上 `/fund`。业务字段参见 [API 文档](../docs/API-DESIGN.md)，以实际路由/OpenAPI 为准。
 
-## Default Admin
+## 测试与数据
 
-- Username: `admin`
-- Password: `[REDACTED_TEST_PASSWORD]`
+[测试说明](../tests/README.md)列出当前 BFF 与 007 migration 回归，须在隔离本地 Docker 环境执行。
 
-**⚠️ Change the default password in production!**
-
-## Project Structure
-
-```
-backend/
-├── app/
-│   ├── api/           # API routes
-│   ├── models/        # SQLAlchemy models
-│   ├── schemas/       # Pydantic schemas
-│   ├── services/      # Business logic
-│   ├── repositories/  # Data access layer
-│   ├── main.py        # FastAPI app
-│   ├── config.py      # Configuration
-│   └── db.py          # Database connection
-├── data/              # SQLite database
-├── init_db.py         # Database initialization
-├── migrate_data.py    # Data migration from pickle
-├── requirements.txt   # Dependencies
-├── pyproject.toml    # Project config
-└── README.md         # This file
-```
-
-## API Endpoints
-
-### Authentication
-- `POST /api/v1/auth/login` - Admin login
-- `GET /api/v1/auth/me` - Get current admin info
-
-### Funds
-- `GET /api/v1/funds` - List all funds
-- `POST /api/v1/funds` - Create fund
-- `GET /api/v1/funds/{fund_id}` - Get fund details
-- `PUT /api/v1/funds/{fund_id}` - Update fund
-- `DELETE /api/v1/funds/{fund_id}` - Delete fund
-- `POST /api/v1/funds/{fund_id}/update-nav` - Update NAV
-- `GET /api/v1/funds/{fund_id}/history` - Get fund history
-- `GET /api/v1/funds/{fund_id}/chart` - Get chart data
-
-### Investors
-- `GET /api/v1/funds/{fund_id}/investors` - List investors
-- `POST /api/v1/funds/{fund_id}/investors` - Add investor
-- `GET /api/v1/funds/{fund_id}/investors/{investor_id}` - Get investor details
-- `PUT /api/v1/funds/{fund_id}/investors/{investor_id}` - Update investor
-- `POST /api/v1/funds/{fund_id}/investors/{investor_id}/invest` - Invest
-- `POST /api/v1/funds/{fund_id}/investors/{investor_id}/redeem` - Redeem
-- `POST /api/v1/funds/{fund_id}/transfer` - Transfer shares
-- `GET /api/v1/funds/{fund_id}/investors/operations` - Get operations
-- `GET /api/v1/funds/{fund_id}/investors/{investor_id}/operations` - Get investor operations
-
-## Environment Variables
-
-Create a `.env` file:
-
-```env
-DATABASE_URL=sqlite:///./data/fund_manager.db
-SECRET_KEY=your-secret-key-change-in-production
-ACCESS_TOKEN_EXPIRE_DAYS=7
-```
-
-## Troubleshooting
-
-### uv command not found
-
-If `which uv` returns nothing, but you installed it, try:
-
-```bash
-# Check if uv is in ~/.local/bin
-~/.local/bin/uv --version
-
-# If yes, add it to PATH temporarily
-export PATH="$HOME/.local/bin:$PATH"
-
-# Or permanently (add to ~/.bashrc)
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
+Compose 数据库为 `sqlite:////app/data/fund_manager.db`。源码目录的 `backend/data` 不是宿主机 Compose 默认 `data/`；迁移前必须明确目标，不要运行脚本后误以为已经修改了实际业务库。

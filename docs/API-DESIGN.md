@@ -1,9 +1,11 @@
 # 基金管理系统 API 设计文档
 
+> 2026-09-05：认证与权限已按 M6 BFF 更新；业务字段/示例保留原设计参考，实际接口以目标版本路由和 OpenAPI 为准。
+
 **版本**: v1.0.0  
 **日期**: 2026-02-28  
 **后端框架**: FastAPI  
-**认证方式**: JWT Bearer Token
+**认证方式**: BFF HttpOnly cookie + CSRF
 
 ---
 
@@ -37,32 +39,20 @@
 
 示例请求：
 ```
-GET http://localhost:8000/api/v1/funds
-Authorization: Bearer <token>
+GET http://localhost:20260/api/v1/funds
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 ---
 
 ## 认证机制
 
-### JWT Token 认证
+使用统一 Auth + BFF HttpOnly cookie。浏览器不通过密码接口获得 JWT，也不使用 Authorization Bearer。OAuth callback 在后端换取 token，保存在 Redis。
 
-所有需要认证的接口都需要在请求头中携带 JWT Token：
+邮箱已验证且具有 vestoria:viewer 可读，vestoria:editor 可读写，auth-service:admin 具备完整权限。写请求需要 X-CSRF-Token。无会话为 401，权限/邮箱/CSRF 不满足为 403。
 
-```http
-Authorization: Bearer <your-jwt-token>
-```
-
-### 获取 Token
-
-通过登录接口获取 Token（详见认证章节）。
-
-### Token 有效期
-
-- **访问令牌**: 7天
-- **刷新令牌**: 30天（预留，暂不实现）
-
----
+本地 API 基址为 http://localhost:20260/api/v1；生产为 https://vestoria.mr-strawberry.com/fund/api/v1。下文 Cookie/CSRF 是会话占位符，不是固定凭据。
 
 ## 通用规范
 
@@ -237,63 +227,13 @@ interface Admin {
 
 ### 1. 认证相关
 
-#### 1.1 管理员登录
+| 方法 | 路径 | 作用 |
+|---|---|---|
+| POST | /api/v1/auth/callback?code=... | BFF 兑换授权码并设置 cookie，不返回 access/refresh token |
+| GET | /api/v1/auth/me | 当前会话对应的用户与业务角色 |
+| POST | /api/v1/auth/logout | 清除本应用会话，校验 CSRF |
 
-**接口**: `POST /api/v1/auth/login`
-
-**描述**: 管理员登录，返回 JWT Token
-
-**请求体**:
-```json
-{
-  "username": "admin",
-  "password": "password123"
-}
-```
-
-**响应** (200):
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "token_type": "bearer",
-    "expires_in": 604800
-  }
-}
-```
-
-**错误响应**:
-- 401: 用户名或密码错误
-
----
-
-#### 1.2 获取当前用户信息
-
-**接口**: `GET /api/v1/auth/me`
-
-**描述**: 获取当前登录的管理员信息
-
-**请求头**:
-```
-Authorization: Bearer <token>
-```
-
-**响应** (200):
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {
-    "id": 1,
-    "username": "admin",
-    "created_at": "2026-01-01T00:00:00Z"
-  }
-}
-```
-
----
+浏览器 callback 页面为 /auth/callback（生产加 /fund 前缀），不是这个 API 的 URL。旧 POST /api/v1/auth/login 已不作为当前登录接口。admins 是业务用户映射，SSO 用户 password_hash 可空。
 
 ### 2. 基金管理
 
@@ -305,7 +245,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **查询参数**:
@@ -347,7 +288,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **请求体**:
@@ -390,7 +332,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -427,7 +370,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -473,7 +417,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -501,7 +446,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -545,7 +491,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -591,7 +538,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -654,7 +602,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -705,7 +654,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -750,7 +700,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -786,7 +737,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -833,7 +785,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -879,7 +832,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -932,7 +886,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -991,7 +946,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -1049,7 +1005,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:
@@ -1100,7 +1057,8 @@ Authorization: Bearer <token>
 
 **请求头**:
 ```
-Authorization: Bearer <token>
+Cookie: <当前 BFF 会话 cookie>
+X-CSRF-Token: <写请求所需 CSRF token>
 ```
 
 **路径参数**:

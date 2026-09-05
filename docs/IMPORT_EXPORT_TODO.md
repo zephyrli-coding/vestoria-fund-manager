@@ -1,5 +1,7 @@
 # 数据导入导出功能 - TODO
 
+> 历史档案：保留原阶段结论、日期和示例，不作为当前部署、权限或测试状态。当前维护入口见项目 README 与文档索引。
+
 ## 当前分支
 `feature/operation-import-export`
 
