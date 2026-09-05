@@ -1,0 +1,18 @@
+import { useEffect, useState } from 'react';
+import type { Fund, Investor } from '@/types/api';
+import { useRemote } from '@/hooks/useRemote';
+import { getOperations, money, shares } from '@/utils/fundApi';
+import { Empty, ErrorState, Loading, Pagination } from '@/components/ui';
+export const operationLabels:Record<string,string>={add_investor:'添加投资者',invest:'申购',redeem:'赎回',transfer:'份额转让',update_nav:'更新净值'};
+export function HistoryTable({fund,investors=[],investorId,revision=0}:{fund:Fund;investors?:Investor[];investorId?:number;revision?:number}) {
+  const [type,setType]=useState(''),[selected,setSelected]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[page,setPage]=useState(1),[size,setSize]=useState(20);
+  useEffect(()=>setPage(1),[fund.id,investorId,type,selected,start,end,size]);
+  const result=useRemote(signal=>{
+    const query=new URLSearchParams({page:String(page),page_size:String(size)});
+    if(type)query.set('operation_type',type);
+    if(investorId||selected)query.set('investor_id',String(investorId||selected));
+    if(start)query.set('start_date',start);if(end)query.set('end_date',end);
+    return getOperations(fund.id,query,signal);
+  },[fund.id,investorId,type,selected,start,end,page,size,revision]);
+  return <><div className="table-toolbar wrap"><div className="row wrap"><label><span className="sr-only">操作类型</span><select aria-label="操作类型" value={type} onChange={e=>setType(e.target.value)}><option value="">全部操作</option>{Object.entries(operationLabels).map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></label>{!investorId&&<select aria-label="按投资者筛选" value={selected} onChange={e=>setSelected(e.target.value)}><option value="">全部投资者</option>{investors.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select>}</div><div className="date-inputs"><input aria-label="历史开始日期" type="date" value={start} max={end||undefined} onChange={e=>setStart(e.target.value)}/><span>至</span><input aria-label="历史结束日期" type="date" value={end} min={start||undefined} onChange={e=>setEnd(e.target.value)}/></div></div>{result.loading?<Loading/>:result.error?<ErrorState error={result.error} retry={result.reload}/>:!result.data?.items.length?<Empty title="所选条件下没有操作记录"/>:<div className="table-wrap"><table><thead><tr><th>记账日期</th><th>操作</th><th>投资者 / 对手方</th><th className="number">金额</th><th className="number">份额</th><th>变更明细</th></tr></thead><tbody>{result.data.items.map(op=><tr key={op.id}><td>{op.operation_date}<span className="table-sub">记录 #{op.id}</span></td><td><span className="badge">{operationLabels[op.operation_type]||op.operation_type}</span></td><td className="wrap-cell">{op.operation_type==='transfer'?(op.transfer_from_name||'#'+op.transfer_from_id)+' → '+(op.transfer_to_name||'#'+op.transfer_to_id):op.investor_name||'基金整体'}</td><td className={'number '+(op.operation_type==='invest'?'positive':op.operation_type==='redeem'?'negative':'')}>{op.amount==null?'--':money(op.operation_type==='redeem'?-op.amount:op.amount,fund.currency,op.operation_type==='invest')}</td><td className="number">{op.share==null?'--':shares(op.share)}</td><td><details className="operation-detail"><summary>查看</summary><dl><dt>净值</dt><dd>{op.nav_before??'--'} → {op.nav_after??'--'}</dd><dt>基金份额</dt><dd>{op.total_share_before??'--'} → {op.total_share_after??'--'}</dd><dt>基金资产</dt><dd>{op.balance_before==null?'--':money(op.balance_before,fund.currency)} → {op.balance_after==null?'--':money(op.balance_after,fund.currency)}</dd></dl></details></td></tr>)}</tbody></table></div>}{result.data&&<Pagination page={page} pageSize={size} total={result.data.total} onPage={setPage} onSize={setSize}/>}</>;
+}

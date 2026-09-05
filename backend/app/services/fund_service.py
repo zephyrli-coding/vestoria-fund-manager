@@ -1,6 +1,9 @@
 """Fund business logic service."""
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from app.transactions import atomic, commit_or_flush
+from app.services.validation import validate_day, validate_name, validate_currency, positive_number, rounded
 from app.models.fund import Fund, FundHistory
 from app.models.operation import Operation
 from app.models.investor_return_snapshot import InvestorReturnSnapshot
@@ -17,8 +20,12 @@ class FundService:
         self.fund_repo = FundRepository(db)
         self.operation_repo = OperationRepository(db)
 
+    @atomic
     def create_fund(self, name: str, start_date: str, currency: str = 'CNY', tags: str = '') -> Fund:
         """Create a new fund."""
+        validate_name(name, "Fund name")
+        validate_day(start_date, "Start date")
+        validate_currency(currency)
         # Check if fund name exists
         existing = self.fund_repo.get_by_name(name)
         if existing:
@@ -36,12 +43,14 @@ class FundService:
         
         funds = self.fund_repo.get_all(skip=skip, limit=limit, tag=tag)
         
-        # Calculate investor count for each fund
+        # Load counts once for this page rather than issuing one query per fund.
+        counts = dict(self.db.query(Investor.fund_id, func.count(Investor.id))
+                      .filter(Investor.fund_id.in_([fund.id for fund in funds]))
+                      .group_by(Investor.fund_id).all()) if funds else {}
         for fund in funds:
-            investor_count = self.db.query(Investor).filter(Investor.fund_id == fund.id).count()
-            fund.investor_count = investor_count
-        
-        total = self.fund_repo.count()
+            fund.investor_count = counts.get(fund.id, 0)
+
+        total = self.fund_repo.count(tag=tag)
         return {
             "items": funds,
             "total": total,
@@ -49,8 +58,14 @@ class FundService:
             "page_size": limit
         }
 
-    def update_fund(self, fund_id: int, name: str, currency: str = None, tags: str = None) -> Fund:
-        """Update fund name, currency, and/or tags."""
+    @atomic
+    def update_fund(self, fund_id: int, name: str, currency: str = None, tags: str = None, start_date: str = None) -> Fund:
+        """Update fund metadata without changing recorded balances."""
+        validate_name(name, "Fund name")
+        if start_date is not None:
+            validate_day(start_date, "Start date")
+        if currency is not None:
+            validate_currency(currency)
         fund = self.get_fund(fund_id)
         if not fund:
             raise ValueError("Fund not found")
@@ -63,6 +78,8 @@ class FundService:
 
         # Build update kwargs
         kwargs = {'name': name}
+        if start_date is not None:
+            kwargs['start_date'] = start_date
         if currency is not None:
             kwargs['currency'] = currency
         if tags is not None:
@@ -70,6 +87,7 @@ class FundService:
 
         return self.fund_repo.update(fund, **kwargs)
 
+    @atomic
     def delete_fund(self, fund_id: int) -> None:
         """Delete a fund."""
         fund = self.get_fund(fund_id)
@@ -77,6 +95,7 @@ class FundService:
             raise ValueError("Fund not found")
         self.fund_repo.delete(fund)
 
+    @atomic
     def update_nav(self, fund_id: int, capital: float, date: str, target_nav: float = None) -> Dict[str, any]:
         """Update fund NAV and create history record.
         
@@ -86,7 +105,13 @@ class FundService:
             date: Date string
             target_nav: If provided, use this NAV directly instead of calculating from capital
         """
-        from app.repositories.investor_repo import InvestorRepository
+        from app.models.investor import Investor
+
+        validate_day(date)
+        if target_nav is not None:
+            positive_number(target_nav, "NAV")
+        else:
+            positive_number(capital, "Capital")
 
         fund = self.get_fund(fund_id)
         if not fund:
@@ -95,8 +120,9 @@ class FundService:
         if capital <= 0 and target_nav is None:
             raise ValueError("Capital must be greater than 0")
 
-        # Check if fund has investors and shares
-        if not fund.investors or fund.total_share == 0:
+        # Query explicitly: an import can add investors after an earlier NAV update.
+        investors = self.db.query(Investor).filter(Investor.fund_id == fund_id).all()
+        if not investors or fund.total_share <= 0:
             raise ValueError("Cannot update NAV: Fund has no investors or total shares is 0")
 
         old_nav = fund.net_asset_value
@@ -105,21 +131,22 @@ class FundService:
         # Calculate new NAV
         if target_nav is not None:
             # Use provided target_nav directly
-            new_nav = round(target_nav, 6)
-            new_balance = round(fund.total_share * new_nav, 6)
+            new_nav = rounded(target_nav)
+            new_balance = rounded(fund.total_share * new_nav)
         else:
             # Calculate from capital
-            new_nav = round(capital / fund.total_share, 6)
+            new_nav = rounded(capital / fund.total_share)
             new_balance = capital
+
+        positive_number(new_nav, "NAV at six-decimal precision")
 
         # Update fund
         self.fund_repo.update_nav(fund, new_nav, new_balance)
 
         # Update all investor balances
-        investor_repo = InvestorRepository(self.db)
-        for investor in fund.investors:
-            investor.balance = round(investor.share * new_nav, 6)
-        self.db.commit()
+        for investor in investors:
+            investor.balance = rounded(investor.share * new_nav)
+        commit_or_flush(self.db)
 
         # Create history record
         self.fund_repo.create_history(
@@ -130,9 +157,15 @@ class FundService:
             balance=new_balance
         )
 
+        # Match FundHistory semantics: one closing snapshot per investor/date.
+        self.db.query(InvestorReturnSnapshot).filter(
+            InvestorReturnSnapshot.fund_id == fund_id,
+            InvestorReturnSnapshot.date == date
+        ).delete(synchronize_session="fetch")
+
         # Create investor return snapshots
-        for investor in fund.investors:
-            total_return = round(investor.share * new_nav + investor.total_redeemed - investor.total_invested, 6)
+        for investor in investors:
+            total_return = rounded(investor.share * new_nav + investor.total_redeemed - investor.total_invested)
             snapshot = InvestorReturnSnapshot(
                 investor_id=investor.id,
                 fund_id=fund_id,
@@ -144,7 +177,7 @@ class FundService:
                 total_return=total_return
             )
             self.db.add(snapshot)
-        self.db.commit()
+        commit_or_flush(self.db)
 
         # Record operation
         self.operation_repo.create(
@@ -185,7 +218,7 @@ class FundService:
             skip=skip,
             limit=limit
         )
-        total = self.fund_repo.count_history(fund_id)
+        total = self.fund_repo.count_history(fund_id, start_date, end_date)
         return {
             "items": histories,
             "total": total,

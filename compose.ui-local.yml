@@ -1,0 +1,97 @@
+name: fund-ui-local
+
+x-backend-environment: &backend-environment
+  DATABASE_URL: sqlite:////app/data/fund_manager.db
+  SECRET_KEY: ${SECRET_KEY:?Configure the existing local Fund .env}
+  AUTH_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:?Configure the existing local Fund .env}
+  AUTH_CLIENT_ID: vestoria
+  AUTH_SERVICE_URL: http://auth-nginx
+  AUTH_SERVICE_JWKS_URL: http://auth-nginx/.well-known/jwks.json
+  AUTH_SERVICE_ISSUER: http://localhost:20263
+  FRONTEND_URL: http://localhost:20260
+  REDIS_URL: redis://fund-ui-redis:6379/0
+  SESSION_COOKIE_SECURE: 'false'
+
+services:
+  fund-ui-backend:
+    image: fund-ui-local:backend
+    build:
+      context: ./backend
+      args:
+        HTTP_PROXY: ${DOCKER_BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${DOCKER_BUILD_HTTPS_PROXY:-}
+    environment: *backend-environment
+    volumes:
+      - fund-ui-data:/app/data
+    networks:
+      private:
+        aliases: [fund-manager-backend]
+      compound-internal: {}
+    depends_on:
+      fund-ui-redis:
+        condition: service_healthy
+
+  fund-ui-frontend:
+    image: fund-ui-local:frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api/v1
+        VITE_BASE_PATH: /
+        VITE_AUTH_SERVICE_URL: http://localhost:20263
+        VITE_AUTH_CLIENT_ID: vestoria
+    ports: ['127.0.0.1:20260:80']
+    networks: [private]
+    depends_on: [fund-ui-backend]
+
+  fund-ui-redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes']
+    volumes:
+      - fund-ui-sessions:/data
+    networks: [private]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  fund-ui-prefix-backend:
+    profiles: [prefix]
+    image: fund-ui-local:backend
+    environment:
+      <<: *backend-environment
+      FRONTEND_URL: http://localhost:21260/fund
+      SESSION_COOKIE_PATH: /fund
+    volumes:
+      - fund-ui-data:/app/data
+    networks: [private, compound-internal]
+    depends_on:
+      fund-ui-redis:
+        condition: service_healthy
+
+  fund-ui-prefix-frontend:
+    profiles: [prefix]
+    image: fund-ui-local:frontend-prefix
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /fund/api/v1
+        VITE_BASE_PATH: /fund/
+        VITE_AUTH_SERVICE_URL: http://localhost:20263
+        VITE_AUTH_CLIENT_ID: vestoria
+    volumes:
+      - ./tests/ui-local-prefix.nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports: ['127.0.0.1:21260:80']
+    networks: [private]
+    depends_on: [fund-ui-prefix-backend]
+
+networks:
+  private: {}
+  compound-internal:
+    external: true
+    name: compound-internal
+
+volumes:
+  fund-ui-data: {}
+  fund-ui-sessions: {}

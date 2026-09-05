@@ -1,5 +1,6 @@
 """Fund repository for database operations."""
 from typing import List, Optional
+from app.transactions import commit_or_flush
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func, case
 from app.models.fund import Fund, FundHistory
@@ -16,7 +17,7 @@ class FundRepository:
         """Create a new fund."""
         fund = Fund(name=name, start_date=start_date, currency=currency, tags=tags)
         self.db.add(fund)
-        self.db.commit()
+        commit_or_flush(self.db)
         self.db.refresh(fund)
         return fund
 
@@ -33,11 +34,14 @@ class FundRepository:
         query = self.db.query(Fund)
         if tag:
             query = query.filter(Fund.tags.like(f'%{tag}%'))
-        return query.offset(skip).limit(limit).all()
+        return query.order_by(Fund.id).offset(skip).limit(limit).all()
 
-    def count(self) -> int:
-        """Count total funds."""
-        return self.db.query(Fund).count()
+    def count(self, tag: Optional[str] = None) -> int:
+        """Count funds using the same filter as the list."""
+        query = self.db.query(Fund)
+        if tag:
+            query = query.filter(Fund.tags.like(f'%{tag}%'))
+        return query.count()
 
     def update(self, fund: Fund, **kwargs) -> Fund:
         """Update fund."""
@@ -45,21 +49,21 @@ class FundRepository:
             if hasattr(fund, key):
                 setattr(fund, key, value)
         fund.updated_at = datetime.utcnow()
-        self.db.commit()
+        commit_or_flush(self.db)
         self.db.refresh(fund)
         return fund
 
     def delete(self, fund: Fund) -> None:
         """Delete fund."""
         self.db.delete(fund)
-        self.db.commit()
+        commit_or_flush(self.db)
 
     def update_nav(self, fund: Fund, nav: float, balance: float) -> Fund:
         """Update fund NAV and balance."""
         fund.net_asset_value = nav
         fund.balance = balance
         fund.updated_at = datetime.utcnow()
-        self.db.commit()
+        commit_or_flush(self.db)
         self.db.refresh(fund)
         return fund
 
@@ -85,7 +89,7 @@ class FundRepository:
             existing.total_share = total_share
             existing.net_asset_value = nav
             existing.balance = balance
-            self.db.commit()
+            commit_or_flush(self.db)
             self.db.refresh(existing)
             return existing
         
@@ -98,7 +102,7 @@ class FundRepository:
             balance=balance
         )
         self.db.add(history)
-        self.db.commit()
+        commit_or_flush(self.db)
         self.db.refresh(history)
         return history
 
@@ -120,9 +124,16 @@ class FundRepository:
 
         return query.order_by(FundHistory.history_date).offset(skip).limit(limit).all()
 
-    def count_history(self, fund_id: int) -> int:
-        """Count fund history records."""
-        return self.db.query(FundHistory).filter(FundHistory.fund_id == fund_id).count()
+    def count_history(
+        self, fund_id: int, start_date: Optional[str] = None, end_date: Optional[str] = None
+    ) -> int:
+        """Count history using the same date range as the list."""
+        query = self.db.query(FundHistory).filter(FundHistory.fund_id == fund_id)
+        if start_date:
+            query = query.filter(FundHistory.history_date >= start_date)
+        if end_date:
+            query = query.filter(FundHistory.history_date <= end_date)
+        return query.count()
 
     def get_chart_data(
         self,
@@ -170,8 +181,7 @@ class FundRepository:
         hist_query = self.db.query(FundHistory).filter(
             FundHistory.fund_id.in_(fund_ids)
         )
-        if start_date:
-            hist_query = hist_query.filter(FundHistory.history_date >= start_date)
+        # Keep earlier snapshots so range filtering does not erase opening balances.
         if end_date:
             hist_query = hist_query.filter(FundHistory.history_date <= end_date)
 
@@ -185,7 +195,10 @@ class FundRepository:
         for h in histories:
             fund_histories[h.fund_id].append(h)
 
-        all_dates = sorted({h.history_date for h in histories})
+        dates = {h.history_date for h in histories}
+        if start_date and any(date <= start_date for date in dates):
+            dates.add(start_date)
+        all_dates = sorted(dates)
 
         # 4. Forward-fill: for each fund, compute balance for every date
         #    fund_id -> {date -> balance_in_cny}
@@ -220,6 +233,8 @@ class FundRepository:
         # 6. Aggregate by date
         results = []
         for date in all_dates:
+            if start_date and date < start_date:
+                continue
             total_cny = sum(fund_balance_by_date[f.id][date] for f in funds)
             results.append({
                 "date": date,

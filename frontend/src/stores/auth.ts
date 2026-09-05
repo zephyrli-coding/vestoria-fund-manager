@@ -1,3 +1,4 @@
+import { readApiResponse } from '@/utils/request';
 import { create } from 'zustand';
 import { apiFetch, redirectToAuthLogin, redirectToGlobalLogout } from '@/config/api';
 import type { User } from '@/types/api';
@@ -6,6 +7,7 @@ import type { User } from '@/types/api';
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  isLoggingOut: boolean;
 }
 
 interface AuthActions {
@@ -21,6 +23,7 @@ interface AuthStore extends AuthState, AuthActions {}
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isAuthenticated: false,
+  isLoggingOut: false,
 
   login: () => {
     redirectToAuthLogin();
@@ -32,7 +35,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       headers: { 'Content-Type': 'application/json' },
     });
 
-    const data = await response.json();
+    const data = await readApiResponse<any>(response);
 
     if (data.code === 0) {
       set({
@@ -45,6 +48,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: async () => {
+    // Keep the login route from starting OAuth before the global logout POST finishes.
+    set({ isLoggingOut: true });
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
     } finally {
@@ -59,7 +64,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   checkAuth: async () => {
     try {
       const response = await apiFetch('/auth/me');
-      const data = await response.json();
+      const data = await readApiResponse<any>(response);
 
       if (data.code === 0) {
         set({ user: data.data, isAuthenticated: true });

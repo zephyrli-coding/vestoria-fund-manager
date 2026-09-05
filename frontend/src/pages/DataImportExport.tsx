@@ -1,287 +1,33 @@
-import { useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { Download, Upload, FileJson, AlertCircle, CheckCircle } from 'lucide-react';
-import { useFundStore } from '@/stores/fund';
-import { apiUrl } from '@/config/api';
-
-export default function DataImportExport() {
-  const { id } = useParams<{ id: string }>();
-  useDocumentTitle('Vestoria - 数据导入导出');
-  const fundId = parseInt(id || '0');
-  const { currentFund } = useFundStore();
-  
-  const [importContent, setImportContent] = useState('');
-  const [importResult, setImportResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Export operations
-  const handleExport = async () => {
-    try {
-      const response = await fetch(apiUrl(`/funds/${fundId}/operations/export`));
-      if (!response.ok) throw new Error('Export failed');
-      
-      const content = await response.text();
-      
-      // Create download
-      const blob = new Blob([content], { type: 'application/jsonl' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `fund_${fundId}_operations.jsonl`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      alert('导出失败: ' + (error as Error).message);
-    }
-  };
-
-  // Import operations
-  const handleImport = async () => {
-    if (!importContent.trim()) {
-      alert('请输入要导入的 JSONL 内容');
-      return;
-    }
-
-    setLoading(true);
-    setImportResult(null);
-    
-    try {
-      const response = await fetch(apiUrl(`/funds/${fundId}/operations/import`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: importContent,
-          mode: 'append'
-        })
-      });
-
-      const result = await response.json();
-      
-      if (result.code === 0) {
-        setImportResult(result.data);
-      } else {
-        alert('导入失败: ' + result.message);
-      }
-    } catch (error) {
-      alert('导入失败: ' + (error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setImportContent(event.target?.result as string);
-    };
-    reader.readAsText(file);
-  };
-
-  return (
-    <div className="animate-fade-in">
-      {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 700, margin: '0 0 8px 0' }}>
-          数据导入导出
-        </h1>
-        <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-          {currentFund?.name ? `基金: ${currentFund.name}` : '选择基金进行操作'}
-        </p>
-      </div>
-
-      {/* Export Section */}
-      <div style={{
-        background: 'var(--bg-primary)',
-        borderRadius: '16px',
-        padding: '24px',
-        marginBottom: '24px',
-        border: '1px solid var(--border-color)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <Download size={24} color="var(--primary-color)" />
-          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>导出操作历史</h2>
-        </div>
-        
-        <p style={{ color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
-          将当前基金的所有操作记录导出为 JSONL 格式。每行一个 JSON 对象，按时间顺序排列。
-          <br />
-          导出的文件可用于备份或在其他基金中重新执行。
-        </p>
-
-        <button
-          onClick={handleExport}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 24px',
-            borderRadius: '10px',
-            border: 'none',
-            background: 'var(--primary-color)',
-            color: 'white',
-            fontSize: '14px',
-            fontWeight: 600,
-            cursor: 'pointer'
-          }}
-        >
-          <FileJson size={18} />
-          导出 JSONL
-        </button>
-      </div>
-
-      {/* Import Section */}
-      <div style={{
-        background: 'var(--bg-primary)',
-        borderRadius: '16px',
-        padding: '24px',
-        border: '1px solid var(--border-color)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <Upload size={24} color="#22c55e" />
-          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>导入操作历史</h2>
-        </div>
-
-        <p style={{ color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
-          从 JSONL 文件导入操作记录。系统将按顺序执行每个操作。
-          <br />
-          <strong>支持的操作类型：</strong>add_investor, invest, redeem, transfer, update_nav
-        </p>
-
-        {/* File Upload */}
-        <div style={{ marginBottom: '20px' }}>
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept=".jsonl,.json,.txt"
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: '1px dashed var(--border-color)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              marginRight: '12px'
-            }}
-          >
-            📁 选择文件
-          </button>
-          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-            或直接在下方粘贴内容
-          </span>
-        </div>
-
-        {/* Text Area */}
-        <textarea
-          value={importContent}
-          onChange={(e) => setImportContent(e.target.value)}
-          placeholder={`示例格式：
-{"operation_type": "add_investor", "operation_date": "2024-03-01", "investor_name": "张三"}
-{"operation_type": "invest", "operation_date": "2024-03-01", "investor_name": "张三", "amount": 10000}
-{"operation_type": "update_nav", "operation_date": "2024-03-02", "amount": 50000}`}
-          style={{
-            width: '100%',
-            minHeight: '200px',
-            padding: '16px',
-            borderRadius: '10px',
-            border: '1px solid var(--border-color)',
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-primary)',
-            fontFamily: 'monospace',
-            fontSize: '13px',
-            resize: 'vertical',
-            marginBottom: '20px'
-          }}
-        />
-
-        {/* Import Button */}
-        <button
-          onClick={handleImport}
-          disabled={loading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 24px',
-            borderRadius: '10px',
-            border: 'none',
-            background: '#22c55e',
-            color: 'white',
-            fontSize: '14px',
-            fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? '导入中...' : <><Upload size={18} /> 执行导入</>}
-        </button>
-
-        {/* Import Result */}
-        {importResult && (
-          <div style={{
-            marginTop: '20px',
-            padding: '16px',
-            borderRadius: '10px',
-            background: importResult.failed > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-            border: `1px solid ${importResult.failed > 0 ? 'var(--danger-color)' : '#22c55e'}`
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              {importResult.failed > 0 ? (
-                <AlertCircle size={20} color="var(--danger-color)" />
-              ) : (
-                <CheckCircle size={20} color="#22c55e" />
-              )}
-              <span style={{ fontWeight: 600 }}>
-                导入完成: {importResult.success}/{importResult.total} 成功
-              </span>
-            </div>
-            
-            {importResult.errors.length > 0 && (
-              <div style={{ marginTop: '12px' }}>
-                <p style={{ color: 'var(--danger-color)', fontWeight: 600, marginBottom: '8px' }}>
-                  错误详情:
-                </p>
-                <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                  {importResult.errors.map((error: string, idx: number) => (
-                    <li key={idx} style={{ marginBottom: '4px' }}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Instructions */}
-      <div style={{
-        marginTop: '24px',
-        padding: '16px',
-        borderRadius: '10px',
-        background: 'var(--bg-secondary)',
-        fontSize: '13px',
-        color: 'var(--text-muted)'
-      }}>
-        <strong>操作类型说明：</strong>
-        <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
-          <li><code>add_investor</code> - 添加投资者 (investor_name)</li>
-          <li><code>invest</code> - 申购 (investor_name, amount)</li>
-          <li><code>redeem</code> - 赎回 (investor_name, amount, amount_type)</li>
-          <li><code>transfer</code> - 转账 (from_investor, to_investor, amount)</li>
-          <li><code>update_nav</code> - 更新净值 (amount 作为总资产)</li>
-        </ul>
-      </div>
-    </div>
-  );
+import { useRemote } from '@/hooks/useRemote';
+import { getFunds, download } from '@/utils/fundApi';
+import { localDate } from '@/utils/fundFormatting';
+import { request } from '@/utils/request';
+import { useAuthStore } from '@/stores/auth';
+import type { ApiResponse } from '@/types/api';
+import { BackLink, Button, ErrorState, Modal, Notice, PageHeader, Panel, WriteButton } from '@/components/ui';
+interface ImportResult {fund_id?:number;fund_name?:string;total_operations?:number;success?:number;failed?:number;errors?:string[];warnings?:string[];is_zip?:boolean;imported_funds?:number;funds?:Array<ImportResult&{filename:string;status:string;error?:string}>;}
+export default function DataImportExport(){
+  const {id}=useParams(),canEdit=useAuthStore(s=>Boolean(s.user?.can_edit)),funds=useRemote(getFunds,[]),pending=useRef(false);
+  const [mode,setMode]=useState<'create'|'append'>(id?'append':'create'),[targetId,setTargetId]=useState(id||''),[exportId,setExportId]=useState(id||''),[content,setContent]=useState(''),[filename,setFilename]=useState(''),[isZip,setIsZip]=useState(false),[reading,setReading]=useState(false),[busy,setBusy]=useState(false),[exporting,setExporting]=useState(false),[error,setError]=useState(''),[exportError,setExportError]=useState(''),[result,setResult]=useState<ImportResult|null>(null),[confirm,setConfirm]=useState(false);
+  const target=funds.data?.find(f=>f.id===Number(targetId));
+  useDocumentTitle('导入与导出 · Compound Fund');
+  const readFile=async(file?:File)=>{if(!file)return;setReading(true);setError('');setResult(null);setFilename(file.name);const zip=file.name.toLowerCase().endsWith('.zip');setIsZip(zip);try{if(zip){const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));setContent(btoa(binary));}else setContent(await file.text());}catch(e){setContent('');setError(e instanceof Error?e.message:'文件读取失败');}finally{setReading(false);}};
+  const prepare=()=>{setError('');if(!content.trim()){setError('请选择文件或粘贴 JSONL 内容');return;}if(mode==='append'&&!target){setError('请选择要追加记录的基金');return;}if(mode==='append'&&isZip){setError('追加导入只支持单个 JSONL；ZIP 请使用新建基金模式。');return;}setConfirm(true);};
+  const runImport=async()=>{if(!canEdit||pending.current)return;pending.current=true;setBusy(true);setError('');setResult(null);try{const data=(await request<ApiResponse<ImportResult>>(mode==='append'?'/funds/'+targetId+'/operations/import':'/funds/import',{method:'POST',body:JSON.stringify({content,...(isZip?{is_zip:true}:{})})})).data;setResult(data);setConfirm(false);funds.reload();if(data.fund_id)setExportId(String(data.fund_id));}catch(e){setError(e instanceof Error?e.message:'导入失败');}finally{pending.current=false;setBusy(false);}};
+  const runExport=async()=>{setExporting(true);setExportError('');try{if(exportId)await download('/funds/'+exportId+'/operations/export','fund_'+exportId+'_operations.jsonl');else await download('/funds/export','funds_'+localDate()+'.zip',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});}catch(e){setExportError(e instanceof Error?e.message:'导出失败');}finally{setExporting(false);}};
+  return <>{id&&<BackLink to={'/funds/'+id}>返回基金详情</BackLink>}<PageHeader title="导入与导出" description="保留操作顺序、记账日期与净值信息，让历史记录始终可追溯。"/>{funds.error&&<ErrorState error={funds.error} retry={funds.reload}/>}<div className="two-column import-grid">
+    <Panel title="导入操作记录" caption="JSONL / ZIP · 需要 editor 权限" className="panel-pad"><div className="segmented"><button type="button" className={mode==='create'?'active':''} onClick={()=>setMode('create')}>新建基金</button><button type="button" className={mode==='append'?'active':''} onClick={()=>setMode('append')}>追加到现有基金</button></div>
+      {mode==='append'&&<label className="field">目标基金<select name="import-fund" value={targetId} onChange={e=>setTargetId(e.target.value)}><option value="">请选择目标基金</option>{funds.data?.map(f=><option key={f.id} value={f.id}>{f.name+' · '+f.currency}</option>)}</select></label>}
+      <Notice tone="warning">{mode==='append'?'追加不会覆盖现有记录。重复导入同一文件可能重复记账，请核对后再继续。':'将按照文件元数据新建基金；同名基金会另建副本，不覆盖已有基金。'} 每个 JSONL 文件要么全部成功，要么全部回滚；ZIP 中不同文件分别处理。</Notice>
+      <label className="dropzone">选择历史数据文件<input name="import-file" type="file" accept=".jsonl,.json,.txt,.zip" disabled={!canEdit||busy||reading} onChange={e=>{void readFile(e.target.files?.[0]);}}/><span className="field-hint">{reading?'正在读取…':filename||'选择 JSONL 文本，或包含 JSONL 的 ZIP 文件'}</span></label>
+      {!isZip&&<label className="field">或粘贴 JSONL 内容<textarea name="import-content" rows={8} value={content} disabled={!canEdit||busy||reading} onChange={e=>{setContent(e.target.value);setFilename('');setResult(null);}} placeholder="第一行为基金元数据，后续每行为一条操作记录。"/></label>}
+      {error&&!confirm&&<Notice tone="error">{error}</Notice>}<div className="form-actions"><Button disabled={busy||reading} onClick={()=>{setContent('');setFilename('');setIsZip(false);setResult(null);setError('');}}>清空内容</Button><WriteButton variant="primary" disabled={busy||reading||!content.trim()} onClick={prepare}>核对并导入</WriteButton></div>
+    </Panel><Panel title="导出数据" caption="保留现有 JSONL / ZIP 文件格式" className="panel-pad"><p className="muted">单基金导出包含基金元数据和全部操作记录。批量导出将每只基金保存为单独 JSONL，并打包为 ZIP。</p><label className="field">导出范围<select name="export-fund" value={exportId} onChange={e=>setExportId(e.target.value)}><option value="">全部基金（ZIP，editor）</option>{funds.data?.map(f=><option key={f.id} value={f.id}>{f.name+' · '+f.currency}</option>)}</select></label>{exportError&&<Notice tone="error">{exportError}</Notice>}<Button variant="primary" disabled={exporting||(!exportId&&!canEdit)||!funds.data?.length} onClick={runExport}>{exporting?'正在导出…':exportId?'导出 JSONL':'导出 ZIP'}</Button>{!canEdit&&!exportId&&<p className="field-hint">Viewer 可选择单只基金导出；批量 ZIP 沿用当前 editor 权限要求。</p>}<div className="divider"/><h3>文件与记账规则</h3><ul className="help-list"><li>JSONL 按原始操作顺序回放，保留日期、金额、份额与交易时净值。</li><li>导出不是数据库完整备份，不包含账号会话或密钥。</li><li>追加时币种必须一致；同名记录不会自动去重。</li></ul></Panel>
+  </div>
+  {result&&<Panel title="导入结果" className="panel-pad section-gap">{result.is_zip?<><Notice tone={result.funds?.some(f=>f.status==='error')?'warning':'success'}>{result.imported_funds} 个基金导入成功，{result.funds?.filter(f=>f.status==='error').length||0} 个文件失败。成功文件已提交，失败文件已回滚。</Notice><div className="table-wrap"><table><thead><tr><th>文件</th><th>结果</th><th>说明</th></tr></thead><tbody>{result.funds?.map((f,i)=><tr key={i}><td className="wrap-cell">{f.filename}</td><td><span className={'badge '+(f.status==='error'?'error':'good')}>{f.status==='error'?'失败，未写入':'成功'}</span></td><td className="wrap-cell">{f.error||<Link className="text-link" to={'/funds/'+f.fund_id}>{f.fund_name+' · '+f.success+'/'+f.total_operations+' 条操作'}</Link>}</td></tr>)}</tbody></table></div></>:<Notice tone="success">导入完成：{result.success}/{result.total_operations} 条操作已提交。<Link className="text-link" to={'/funds/'+result.fund_id}> 查看 {result.fund_name} →</Link></Notice>}{result.warnings?.map(w=><Notice key={w} tone="warning">{w}</Notice>)}</Panel>}
+  {confirm&&<Modal title="确认导入操作记录" description="这将写入本地应用当前连接的真实数据库。" busy={busy} onClose={()=>setConfirm(false)} footer={<><Button disabled={busy} onClick={()=>setConfirm(false)}>返回核对</Button><WriteButton variant="primary" disabled={busy} onClick={runImport}>{busy?'正在导入…':'确认导入'}</WriteButton></>}><dl className="definition-list"><dt>导入方式</dt><dd>{mode==='append'?'追加到现有基金':'新建基金 / 同名另建副本'}</dd><dt>目标</dt><dd>{mode==='append'?target?.name:'以文件元数据为准'}</dd><dt>输入</dt><dd>{filename||'粘贴的 JSONL 内容'}</dd><dt>格式</dt><dd>{isZip?'ZIP（每个 JSONL 独立提交）':'JSONL（整份文件原子提交）'}</dd></dl><Notice tone="warning">{mode==='append'?'请确认未重复导入；重复记录可能导致重复记账。':'同名文件或基金不会自动合并。'} 此核对页不代表后端已验证，提交后仍以实际校验结果为准。</Notice>{error&&<Notice tone="error">{error}</Notice>}</Modal>}
+  </>;
 }

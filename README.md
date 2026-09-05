@@ -45,3 +45,15 @@ SQLite 默认宿主机 `./data/fund_manager.db` 映射到 `/app/data/fund_manage
 - [后端开发](backend/README.md)、[前端开发](frontend/README.md)、[测试边界与入口](tests/README.md)。
 - 先在独立本地 Docker 测试，确认新用户登录、viewer/editor、CSRF 和旧库迁移，再通过 PR/main 部署到 SG01。
 - 2026-08-30 上线与 Fund 首次登录修复的证据由 [infra 上线记录](https://github.com/zephyrli-coding/compound-infra/blob/main/docs/operations/m6-production-rollout-2026-08-30.md)维护；本次文档整理未重跑测试。
+
+
+## Fund optimization iterations
+
+- [Safety and UX iteration, 2026-09-05](docs/iterations/2026-09-05-fund-safety-ux.md): local implementation, compatibility boundaries, pending regression checks and later iterations.
+- These changes are not yet validated in local Docker or deployed to production.
+
+## Fund 统一 UI 与最新本地验收
+
+统一侧栏、基金/投资者页面、交易预览、数据管理与响应式布局已经落地；账务口径、真实权限和导入导出格式保持不变。本轮 Docker 构建、19 项后端测试及 25 组浏览器场景通过，尚未推送或部署生产。
+
+本地体验：[Fund](http://localhost:20260)、[子路径验收](http://localhost:21260/fund/)。完整范围、复跑方法、已知边界与截图见 [统一 UI 迭代记录](docs/iterations/2026-09-06-unified-ui.md)。该记录是本轮最新验收状态，前序迭代的待验证事项以其中的实际覆盖清单为准。

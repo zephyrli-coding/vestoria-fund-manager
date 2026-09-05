@@ -1,0 +1,6 @@
+FROM fund-ui-local:backend
+RUN pip install --no-cache-dir pytest==8.3.5
+ENV PYTHONPATH=/workspace/backend
+ENV DATABASE_URL=sqlite:////tmp/fund-ui-tests.db
+WORKDIR /workspace
+CMD ["python", "-m", "pytest", "-q", "tests/test_bff_auth.py", "tests/test_admin_password_nullable_migration.py", "tests/test_fund_safety.py"]
