@@ -1,6 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from app.transactions import atomic, commit_or_flush
+from app.services.validation import validate_day, validate_name, positive_number, validate_amount_type, rounded
 from app.models.fund import Fund
 from app.models.investor import Investor
 from app.models.operation import Operation
@@ -18,8 +21,11 @@ class InvestorService:
         self.fund_repo = FundRepository(db)
         self.operation_repo = OperationRepository(db)
 
+    @atomic
     def add_investor(self, fund_id: int, name: str, date: str) -> Investor:
         """Add a new investor to a fund."""
+        validate_name(name, "Investor name")
+        validate_day(date)
         # Check if fund exists
         fund = self.fund_repo.get_by_id(fund_id)
         if not fund:
@@ -32,8 +38,8 @@ class InvestorService:
 
         # Create investor
         investor = self.investor_repo.create(fund_id, name)
-        investor.balance = round(investor.share * fund.net_asset_value, 6)
-        self.db.commit()
+        investor.balance = rounded(investor.share * fund.net_asset_value)
+        commit_or_flush(self.db)
 
         # Record operation
         self.operation_repo.create(
@@ -73,11 +79,16 @@ class InvestorService:
         investors = self.investor_repo.get_by_fund(fund_id, skip=skip, limit=limit)
         total = self.investor_repo.count_by_fund(fund_id)
         
-        # Enrich investors with creation_date from operation history
+        dates = dict(self.db.query(Operation.investor_id, func.min(Operation.operation_date))
+                     .filter(Operation.fund_id == fund_id,
+                             Operation.operation_type == "add_investor",
+                             Operation.investor_id.in_([investor.id for investor in investors]))
+                     .group_by(Operation.investor_id).all()) if investors else {}
         for investor in investors:
-            creation_date = self._get_investor_creation_date(fund_id, investor.id)
-            if creation_date:
-                investor.creation_date = creation_date
+            try:
+                investor.creation_date = datetime.strptime(dates[investor.id], '%Y-%m-%d')
+            except (KeyError, TypeError, ValueError):
+                investor.creation_date = None
         
         return {
             "items": investors,
@@ -86,8 +97,10 @@ class InvestorService:
             "page_size": limit
         }
 
+    @atomic
     def update_investor(self, fund_id: int, investor_id: int, name: str) -> Investor:
         """Update investor name."""
+        validate_name(name, "Investor name")
         investor = self.get_investor(fund_id, investor_id)
         if not investor:
             raise ValueError("Investor not found")
@@ -99,8 +112,11 @@ class InvestorService:
 
         return self.investor_repo.update(investor, name=name)
 
+    @atomic
     def invest(self, fund_id: int, investor_id: int, amount: float, date: str, use_nav: float = None) -> Dict[str, any]:
         """Investor invests in the fund."""
+        positive_number(amount, "Investment amount")
+        validate_day(date)
         # Get fund and investor
         fund = self.fund_repo.get_by_id(fund_id)
         if not fund:
@@ -112,25 +128,30 @@ class InvestorService:
 
         # Calculate shares using provided NAV or current fund NAV
         nav = use_nav if use_nav is not None else fund.net_asset_value
-        share = round(amount / nav, 6) if nav != 0 else round(amount, 6)
+        positive_number(nav, "NAV")
+        share = rounded(amount / nav)
+        positive_number(share, "Shares at six-decimal precision")
         
         # Get current fund NAV for balance calculations
         current_nav = fund.net_asset_value
+        positive_number(current_nav, "Current NAV")
+        old_fund_share = fund.total_share
+        old_fund_balance = fund.balance
 
         # Update investor
-        new_share = round(investor.share + share, 6)
-        new_total_invested = round(investor.total_invested + amount, 6)
+        new_share = rounded(investor.share + share)
+        new_total_invested = rounded(investor.total_invested + amount)
         self.investor_repo.update_share(investor, new_share)
         investor.total_invested = new_total_invested
 
         # Update fund total share and balance (using current NAV)
-        new_fund_total_share = round(fund.total_share + share, 6)
-        new_fund_balance = round(new_fund_total_share * current_nav, 6)
+        new_fund_total_share = rounded(fund.total_share + share)
+        new_fund_balance = rounded(new_fund_total_share * current_nav)
         self.fund_repo.update(fund, total_share=new_fund_total_share, balance=new_fund_balance)
 
         # Update investor balance (using current NAV)
-        investor.balance = round(new_share * current_nav, 6)
-        self.db.commit()
+        investor.balance = rounded(new_share * current_nav)
+        commit_or_flush(self.db)
 
         # Record operation
         self.operation_repo.create(
@@ -142,9 +163,9 @@ class InvestorService:
             share=share,
             nav_before=nav,
             nav_after=nav,
-            total_share_before=fund.total_share,
+            total_share_before=old_fund_share,
             total_share_after=new_fund_total_share,
-            balance_before=fund.balance,
+            balance_before=old_fund_balance,
             balance_after=new_fund_balance
         )
 
@@ -158,6 +179,7 @@ class InvestorService:
             "fund_nav": current_nav
         }
 
+    @atomic
     def redeem(
         self,
         fund_id: int,
@@ -168,6 +190,9 @@ class InvestorService:
         use_nav: float = None
     ) -> Dict[str, any]:
         """Investor redeems shares or balance."""
+        positive_number(amount, "Redemption amount")
+        validate_amount_type(amount_type)
+        validate_day(date)
         # Get fund and investor
         fund = self.fund_repo.get_by_id(fund_id)
         if not fund:
@@ -182,6 +207,10 @@ class InvestorService:
 
         # Use provided NAV or current fund NAV
         nav = use_nav if use_nav is not None else fund.net_asset_value
+        positive_number(nav, "NAV")
+        positive_number(fund.net_asset_value, "Current NAV")
+        old_fund_share = fund.total_share
+        old_fund_balance = fund.balance
         investor_balance = investor.share * nav
 
         # Calculate redemption
@@ -189,27 +218,30 @@ class InvestorService:
             if investor.share < amount:
                 amount = investor.share
             redeem_share = amount
-            redeem_balance = round(redeem_share * nav, 6)
+            redeem_balance = rounded(redeem_share * nav)
         else:  # balance
             if investor_balance < amount:
                 amount = investor_balance
             redeem_balance = amount
-            redeem_share = round(redeem_balance / nav, 6)
+            redeem_share = rounded(redeem_balance / nav)
+
+        redeem_share = rounded(redeem_share)
+        positive_number(redeem_share, "Redeemed shares at six-decimal precision")
 
         # Update investor
-        new_investor_share = round(investor.share - redeem_share, 6)
-        new_total_redeemed = round(investor.total_redeemed + redeem_balance, 6)
+        new_investor_share = rounded(investor.share - redeem_share)
+        new_total_redeemed = rounded(investor.total_redeemed + redeem_balance)
         self.investor_repo.update_share(investor, new_investor_share)
         investor.total_redeemed = new_total_redeemed
 
         # Update fund total share and balance
-        new_fund_total_share = round(fund.total_share - redeem_share, 6)
-        new_fund_balance = round(new_fund_total_share * nav, 6)
+        new_fund_total_share = rounded(fund.total_share - redeem_share)
+        new_fund_balance = rounded(new_fund_total_share * fund.net_asset_value)
         self.fund_repo.update(fund, total_share=new_fund_total_share, balance=new_fund_balance)
 
         # Update investor balance
-        investor.balance = round(new_investor_share * nav, 6)
-        self.db.commit()
+        investor.balance = rounded(new_investor_share * fund.net_asset_value)
+        commit_or_flush(self.db)
 
         # Record operation
         self.operation_repo.create(
@@ -222,9 +254,9 @@ class InvestorService:
             share=redeem_share,
             nav_before=nav,
             nav_after=nav,
-            total_share_before=fund.total_share,
+            total_share_before=old_fund_share,
             total_share_after=new_fund_total_share,
-            balance_before=fund.balance,
+            balance_before=old_fund_balance,
             balance_after=new_fund_balance
         )
 
@@ -236,9 +268,10 @@ class InvestorService:
             "redeemed_balance": redeem_balance,
             "new_share": new_investor_share,
             "fund_total_share": new_fund_total_share,
-            "fund_nav": nav
+            "fund_nav": fund.net_asset_value
         }
 
+    @atomic
     def transfer(
         self,
         fund_id: int,
@@ -250,6 +283,11 @@ class InvestorService:
         use_nav: float = None
     ) -> Dict[str, any]:
         """Transfer shares between investors."""
+        if from_investor_id == to_investor_id:
+            raise ValueError("Source and target investors must be different")
+        positive_number(amount, "Transfer amount")
+        validate_amount_type(amount_type)
+        validate_day(date)
         # Get fund
         fund = self.fund_repo.get_by_id(fund_id)
         if not fund:
@@ -266,6 +304,9 @@ class InvestorService:
 
         # Use provided NAV or current fund NAV
         nav = use_nav if use_nav is not None else fund.net_asset_value
+        positive_number(nav, "NAV")
+        positive_number(fund.net_asset_value, "Current NAV")
+        positive_number(from_investor.share, "Available shares")
         from_balance = from_investor.share * nav
 
 
@@ -280,22 +321,25 @@ class InvestorService:
                 transfer_share = from_investor.share
             else:
                 transfer_share = amount
-            transfer_balance = round(transfer_share * nav, 6)
+            transfer_balance = rounded(transfer_share * nav)
         else:  # balance
             # Auto-adjust to max available if insufficient
             if from_balance < amount:
                 transfer_balance = from_balance
             else:
                 transfer_balance = amount
-            transfer_share = round(transfer_balance / nav, 6)
+            transfer_share = rounded(transfer_balance / nav)
+
+        transfer_share = rounded(transfer_share)
+        positive_number(transfer_share, "Transferred shares at six-decimal precision")
 
         # Update investors
-        from_new_share = round(from_investor.share - transfer_share, 6)
-        to_new_share = round(to_investor.share + transfer_share, 6)
+        from_new_share = rounded(from_investor.share - transfer_share)
+        to_new_share = rounded(to_investor.share + transfer_share)
 
         # Update cumulative amounts: transfer out = redeem for from, transfer in = invest for to
-        from_new_total_redeemed = round(from_investor.total_redeemed + transfer_balance, 6)
-        to_new_total_invested = round(to_investor.total_invested + transfer_balance, 6)
+        from_new_total_redeemed = rounded(from_investor.total_redeemed + transfer_balance)
+        to_new_total_invested = rounded(to_investor.total_invested + transfer_balance)
 
         self.investor_repo.update_share(from_investor, from_new_share)
         self.investor_repo.update_share(to_investor, to_new_share)
@@ -303,9 +347,9 @@ class InvestorService:
         to_investor.total_invested = to_new_total_invested
 
         # Update investor balances
-        from_investor.balance = round(from_new_share * nav, 6)
-        to_investor.balance = round(to_new_share * nav, 6)
-        self.db.commit()
+        from_investor.balance = rounded(from_new_share * fund.net_asset_value)
+        to_investor.balance = rounded(to_new_share * fund.net_asset_value)
+        commit_or_flush(self.db)
 
         # Record operation (fund balance doesn't change in transfer)
         self.operation_repo.create(
@@ -361,7 +405,9 @@ class InvestorService:
         total = self.operation_repo.count_by_fund(
             fund_id=fund_id,
             operation_type=operation_type,
-            investor_id=investor_id
+            investor_id=investor_id,
+            start_date=start_date,
+            end_date=end_date
         )
         return {
             "items": operations,

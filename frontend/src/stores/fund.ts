@@ -1,4 +1,5 @@
-import { apiFetch } from '@/config/api';
+import { request, fetchAllPages } from '@/utils/request';
+import { localDate } from '@/utils/fundFormatting';
 import { create } from 'zustand';
 import type { Fund, FundCreate, FundUpdate, PaginatedResponse, FundChartData, Investor, Operation, ApiResponse } from '@/types/api';
 
@@ -32,25 +33,7 @@ interface FundActions {
 
 interface FundStore extends FundState, FundActions {}
 
-// 辅助函数：API 请求
-const request = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  const response = await apiFetch(endpoint, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Request failed');
-  }
-
-  return response.json();
-};
+let fundsRequestId = 0;
 
 // 创建基金 store
 export const useFundStore = create<FundStore>((set, get) => ({
@@ -61,23 +44,18 @@ export const useFundStore = create<FundStore>((set, get) => ({
   error: null,
 
   fetchFunds: async (tag?: string) => {
+    const requestId = ++fundsRequestId;
     set({ loading: true, error: null });
     try {
-      let url = '/funds';
-      if (tag) {
-        url += `?tag=${encodeURIComponent(tag)}`;
-      }
-      const response = await request<ApiResponse<PaginatedResponse<Fund>>>(url);
-
-      if (response.code === 0) {
-        set({ funds: response.data.items });
-      } else {
-        set({ error: response.message || 'Failed to fetch funds' });
-      }
+      const query = tag ? `?tag=${encodeURIComponent(tag)}` : '';
+      const funds = await fetchAllPages<Fund>(`/funds${query}`);
+      if (requestId === fundsRequestId) set({ funds });
     } catch (error: any) {
-      set({ error: error.message || 'Failed to fetch funds' });
+      if (requestId === fundsRequestId) {
+        set({ funds: [], error: error.message || 'Failed to fetch funds' });
+      }
     } finally {
-      set({ loading: false });
+      if (requestId === fundsRequestId) set({ loading: false });
     }
   },
 
@@ -104,26 +82,21 @@ export const useFundStore = create<FundStore>((set, get) => ({
   fetchInvestors: async (fundId: number) => {
     set({ loading: true, error: null });
     try {
-      const response = await request<ApiResponse<PaginatedResponse<Investor>>>(`/funds/${fundId}/investors`);
-
-      if (response.code === 0) {
-        set({ investors: response.data.items });
-        return response.data.items;
-      } else {
-        set({ error: response.message || 'Failed to fetch investors' });
-        return [];
-      }
+      const investors = await fetchAllPages<Investor>(`/funds/${fundId}/investors`);
+      set({ investors });
+      return investors;
     } catch (error: any) {
-      set({ error: error.message || 'Failed to fetch investors' });
+      set({ investors: [], error: error.message || 'Failed to fetch investors' });
       return [];
     } finally {
       set({ loading: false });
     }
   },
 
-  fetchOperations: async (fundId: number, page: number = 1, pageSize: number = 50) => {
+  fetchOperations: async (fundId: number, page?: number, pageSize: number = 50) => {
     set({ loading: true, error: null });
     try {
+      if (page === undefined) return await fetchAllPages<Operation>(`/funds/${fundId}/investors/operations`);
       const response = await request<ApiResponse<PaginatedResponse<Operation>>>(
         `/funds/${fundId}/investors/operations?page=${page}&page_size=${pageSize}`
       );
@@ -142,9 +115,10 @@ export const useFundStore = create<FundStore>((set, get) => ({
     }
   },
 
-  fetchInvestorOperations: async (fundId: number, investorId: number, page: number = 1, pageSize: number = 50) => {
+  fetchInvestorOperations: async (fundId: number, investorId: number, page?: number, pageSize: number = 50) => {
     set({ loading: true, error: null });
     try {
+      if (page === undefined) return await fetchAllPages<Operation>(`/funds/${fundId}/investors/${investorId}/operations`);
       const response = await request<ApiResponse<PaginatedResponse<Operation>>>(
         `/funds/${fundId}/investors/${investorId}/operations?page=${page}&page_size=${pageSize}`
       );
@@ -236,7 +210,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
   addInvestor: async (fundId: number, name: string, date?: string) => {
     set({ loading: true, error: null });
     try {
-      const useDate = date || new Date().toISOString().split('T')[0];
+      const useDate = date || localDate();
       const response = await request<ApiResponse<Investor>>(`/funds/${fundId}/investors`, {
         method: 'POST',
         body: JSON.stringify({ name, date: useDate }),
@@ -249,6 +223,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to add investor' });
+      throw error;
     } finally {
       set({ loading: false });
     }
@@ -267,6 +242,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to invest' });
+      throw error;
     } finally {
       set({ loading: false });
     }
@@ -285,6 +261,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to redeem' });
+      throw error;
     } finally {
       set({ loading: false });
     }
@@ -309,6 +286,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to transfer' });
+      throw error;
     } finally {
       set({ loading: false });
     }
@@ -355,6 +333,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to update fund' });
+      throw error;
     } finally {
       set({ loading: false });
     }
@@ -376,6 +355,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to delete fund' });
+      throw error;
     } finally {
       set({ loading: false });
     }
@@ -394,6 +374,7 @@ export const useFundStore = create<FundStore>((set, get) => ({
       }
     } catch (error: any) {
       set({ error: error.message || 'Failed to update NAV' });
+      throw error;
     } finally {
       set({ loading: false });
     }

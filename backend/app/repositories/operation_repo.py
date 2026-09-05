@@ -1,7 +1,8 @@
 """Operation repository for database operations."""
 from typing import List, Optional
+from app.transactions import commit_or_flush
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from app.models.operation import Operation
 
 
@@ -15,7 +16,7 @@ class OperationRepository:
         """Create a new operation record."""
         operation = Operation(**kwargs)
         self.db.add(operation)
-        self.db.commit()
+        commit_or_flush(self.db)
         self.db.refresh(operation)
         return operation
 
@@ -46,7 +47,11 @@ class OperationRepository:
         if operation_type:
             query = query.filter(Operation.operation_type == operation_type)
         if investor_id:
-            query = query.filter(Operation.investor_id == investor_id)
+            query = query.filter(or_(
+                Operation.investor_id == investor_id,
+                Operation.transfer_from_id == investor_id,
+                Operation.transfer_to_id == investor_id
+            ))
         if start_date:
             query = query.filter(Operation.operation_date >= start_date)
         if end_date:
@@ -58,7 +63,9 @@ class OperationRepository:
         self,
         fund_id: int,
         operation_type: Optional[str] = None,
-        investor_id: Optional[int] = None
+        investor_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
     ) -> int:
         """Count operations by fund with filters."""
         query = self.db.query(Operation).filter(Operation.fund_id == fund_id)
@@ -66,8 +73,16 @@ class OperationRepository:
         if operation_type:
             query = query.filter(Operation.operation_type == operation_type)
         if investor_id:
-            query = query.filter(Operation.investor_id == investor_id)
+            query = query.filter(or_(
+                Operation.investor_id == investor_id,
+                Operation.transfer_from_id == investor_id,
+                Operation.transfer_to_id == investor_id
+            ))
 
+        if start_date:
+            query = query.filter(Operation.operation_date >= start_date)
+        if end_date:
+            query = query.filter(Operation.operation_date <= end_date)
         return query.count()
 
     def get_recent(self, limit: int = 10) -> List[Operation]:
@@ -79,7 +94,7 @@ class OperationRepository:
                 joinedload(Operation.transfer_from),
                 joinedload(Operation.transfer_to)
             )
-            .order_by(desc(Operation.created_at))
+            .order_by(desc(Operation.created_at), desc(Operation.id))
             .limit(limit)
             .all()
         )

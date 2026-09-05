@@ -139,7 +139,7 @@ def update_fund(
 ):
     """Update fund."""
     try:
-        fund = service.update_fund(fund_id, request.name, request.currency, request.tags)
+        fund = service.update_fund(fund_id, request.name, request.currency, request.tags, start_date=request.start_date)
         return ResponseModel(data=fund, message="Fund updated successfully")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

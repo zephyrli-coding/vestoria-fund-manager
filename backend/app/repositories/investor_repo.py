@@ -1,5 +1,6 @@
 """Investor repository for database operations."""
 from typing import List, Optional
+from app.transactions import commit_or_flush
 from sqlalchemy.orm import Session
 from app.models.investor import Investor
 
@@ -14,7 +15,7 @@ class InvestorRepository:
         """Create a new investor."""
         investor = Investor(fund_id=fund_id, name=name)
         self.db.add(investor)
-        self.db.commit()
+        commit_or_flush(self.db)
         self.db.refresh(investor)
         return investor
 
@@ -33,7 +34,7 @@ class InvestorRepository:
         """Get all investors in a fund with pagination."""
         return self.db.query(Investor).filter(
             Investor.fund_id == fund_id
-        ).offset(skip).limit(limit).all()
+        ).order_by(Investor.id).offset(skip).limit(limit).all()
 
     def count_by_fund(self, fund_id: int) -> int:
         """Count investors in a fund."""
@@ -44,18 +45,18 @@ class InvestorRepository:
         for key, value in kwargs.items():
             if hasattr(investor, key):
                 setattr(investor, key, value)
-        self.db.commit()
+        commit_or_flush(self.db)
         self.db.refresh(investor)
         return investor
 
     def update_share(self, investor: Investor, share: float) -> Investor:
         """Update investor share and balance."""
         investor.share = share
-        self.db.commit()
+        commit_or_flush(self.db)
         self.db.refresh(investor)
         return investor
 
     def delete(self, investor: Investor) -> None:
         """Delete investor."""
         self.db.delete(investor)
-        self.db.commit()
+        commit_or_flush(self.db)

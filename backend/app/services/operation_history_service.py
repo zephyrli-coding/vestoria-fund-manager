@@ -3,6 +3,8 @@ import json
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from app.models import Operation, Fund, Investor
+from app.transactions import atomic
+from app.services.validation import validate_day, validate_name, validate_currency
 
 
 class OperationHistoryService:
@@ -138,6 +140,7 @@ class OperationHistoryService:
 
         return "\n".join(lines)
 
+    @atomic
     def import_from_jsonl(self, content: str, target_fund_id: int = None) -> Dict[str, Any]:
         """Import operations from JSONL format.
         
@@ -160,6 +163,8 @@ class OperationHistoryService:
                 continue
             try:
                 data = json.loads(line)
+                if not isinstance(data, dict):
+                    raise ValueError(f"Line {line_num}: each record must be a JSON object")
                 data["_line_num"] = line_num
                 lines.append(data)
             except json.JSONDecodeError as e:
@@ -180,8 +185,17 @@ class OperationHistoryService:
             "tags": first_line.get("tags", "")
         }
 
-        if not fund_meta["name"]:
-            raise ValueError("Fund name is required in metadata")
+        validate_name(fund_meta["name"], "Fund name")
+        validate_day(fund_meta["start_date"], "Start date")
+        validate_currency(fund_meta["currency"])
+        if not isinstance(fund_meta["tags"], str):
+            raise ValueError("Fund tags must be a string")
+        for data in lines[1:]:
+            if data.get("_type") != "operation":
+                raise ValueError(f"Line {data['_line_num']}: expected an operation record")
+            validate_day(data.get("operation_date"), f"Line {data['_line_num']} operation date")
+
+        warnings = []
 
         # Determine import mode
         fund_id: int
@@ -194,9 +208,10 @@ class OperationHistoryService:
             if not fund:
                 raise ValueError(f"Target fund with id {target_fund_id} not found")
             
-            # Check name match (optional validation)
+            if fund.currency != fund_meta["currency"]:
+                raise ValueError("Import currency does not match the target fund")
             if fund.name != fund_meta["name"]:
-                print(f"Warning: Fund name mismatch. File: '{fund_meta['name']}', Target: '{fund.name}'")
+                warnings.append(f"Imported into '{fund.name}'; file name was '{fund_meta['name']}'")
             
             fund_id = target_fund_id
             is_new_fund = False
@@ -248,7 +263,9 @@ class OperationHistoryService:
             "total_operations": len(lines) - 1,  # Exclude metadata line
             "success": 0,
             "failed": 0,
-            "errors": []
+            "errors": [],
+            "warnings": warnings,
+            "committed": True
         }
 
         # Cache for investor name -> id mapping
@@ -276,10 +293,9 @@ class OperationHistoryService:
                     investor_map=investor_map
                 )
                 results["success"] += 1
-            except Exception as e:
-                results["failed"] += 1
-                results["errors"].append(f"Line {line_num}: {str(e)}")
-                # Continue with next operation
+            except ValueError as e:
+                # The outer transaction also rolls back earlier operations in this file.
+                raise ValueError(f"Line {line_num}: {e}. No data from this file was imported") from e
 
         return results
 

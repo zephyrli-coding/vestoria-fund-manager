@@ -1,0 +1,93 @@
+import {assert,connect,api,ready,tap,setValue,chooseTrade,finishTrade,saveState,screenshotRoot,login} from './helpers.mjs';
+
+const b=await connect('editor');
+const checks=[];
+const name='UI 回归 · 人民币组合 '+Date.now();
+try {
+  await login(b,0);
+  await ready(b,'基金总览');
+  await b.navigate('http://localhost:20260/funds/create');
+  await ready(b,'新建基金');
+  await b.fill('input[name="fund-name"]',name);
+  await b.fill('input[name="tags"]','UI回归,长期');
+  await setValue(b,'input[name="start-date"]','2026-09-01');
+  await tap(b,'创建基金');
+  await ready(b,'基金列表');
+  const fund=(await api(b,'/api/v1/funds?page_size=100')).data.data.items.find(f=>f.name===name);
+  assert.ok(fund?.id);
+  assert.equal(fund.start_date,'2026-09-01');
+  saveState({fundId:fund.id,name});
+  checks.push('create fund and preserve selected start date');
+  await b.navigate('http://localhost:20260/funds/'+fund.id);
+  await ready(b,name);
+  for(const person of ['回归投资者甲','回归投资者乙']) {
+    await tap(b,'添加投资者');
+    await b.wait("Boolean(document.querySelector('input[name=investor-name]'))");
+    await b.fill('input[name="investor-name"]',person);
+    await finishTrade(b,'确认添加','2026-09-01');
+  }
+  for(const [person,amount] of [['回归投资者甲','10000'],['回归投资者乙','5000']]) {
+    await chooseTrade(b,person,'申购');
+    await b.fill('input[name="amount"]',amount);
+    assert.ok((await b.snapshot()).text.includes('申购预览'));
+    await finishTrade(b,'确认申购','2026-09-01');
+  }
+  await tap(b,'更新净值');
+  await b.fill('input[name="amount"]','18000');
+  await finishTrade(b,'确认更新','2026-09-02');
+  let data=(await api(b,'/api/v1/funds/'+fund.id)).data.data;
+  assert.equal(data.balance,18000);
+  assert.equal(data.net_asset_value,1.2);
+  assert.equal(data.total_share,15000);
+  checks.push('two real subscriptions and NAV update');
+  let people=(await api(b,'/api/v1/funds/'+fund.id+'/investors?page_size=100')).data.data.items;
+  const a=people.find(p=>p.name==='回归投资者甲'),c=people.find(p=>p.name==='回归投资者乙');
+  saveState({fundId:fund.id,name,investorA:a.id,investorB:c.id});
+  await chooseTrade(b,a.name,'转让');
+  const targets=await b.evaluate("Array.from(document.querySelector('select[name=target-id]').options).map(o=>o.value)");
+  assert.ok(!targets.includes(String(a.id)));
+  await setValue(b,'select[name="target-id"]',c.id);
+  await b.fill('input[name="amount"]','1000');
+  assert.ok((await b.snapshot()).text.includes('转让预览'));
+  await finishTrade(b,'确认转让','2026-09-03');
+  await chooseTrade(b,c.name,'赎回');
+  await tap(b,'按金额','dialog');
+  await b.fill('input[name="amount"]','600');
+  await finishTrade(b,'确认赎回','2026-09-04');
+  data=(await api(b,'/api/v1/funds/'+fund.id)).data.data;
+  people=(await api(b,'/api/v1/funds/'+fund.id+'/investors?page_size=100')).data.data.items;
+  assert.equal(data.balance,17400);
+  assert.equal(data.total_share,14500);
+  assert.equal(people.find(p=>p.id===a.id).share,9000);
+  assert.equal(people.find(p=>p.id===c.id).share,5500);
+  checks.push('transfer excludes self; amount redemption preserves accounting');
+  await tap(b,'更新净值');
+  await b.fill('input[name="amount"]','18850');
+  await finishTrade(b,'确认更新','2026-09-05');
+  data=(await api(b,'/api/v1/funds/'+fund.id)).data.data;
+  assert.equal(data.net_asset_value,1.3);
+  assert.equal(data.total_share,14500);
+  assert.equal(data.balance,18850);
+  await tap(b,'操作历史');
+  await b.wait("Boolean(document.querySelector('select[aria-label=操作类型]')) && !document.body.innerText.includes('正在加载真实数据')");
+  const history=await api(b,'/api/v1/funds/'+fund.id+'/investors/operations?investor_id='+c.id+'&page_size=100');
+  assert.ok(history.data.data.items.some(o=>o.operation_type==='transfer'));
+  assert.ok((await b.snapshot()).text.includes('份额转让'));
+  checks.push('history includes incoming transfers and operation details');
+  await b.navigate('http://localhost:20260/funds/'+fund.id+'/investors/'+c.id);
+  await ready(b,c.name);
+  assert.ok((await b.snapshot()).text.includes('最新快照'));
+  checks.push('investor detail, return curve, latest snapshot and history');
+  await b.navigate('http://localhost:20260/');
+  await ready(b,'基金总览');
+  await b.screenshot(screenshotRoot+'overview-desktop.png',1440,1100);
+  checks.push('dashboard shows real NAV history and recent operations');
+  const errors=b.events.filter(e=>e.method==='Runtime.exceptionThrown').map(e=>e.params?.exceptionDetails?.text);
+  assert.deepEqual(errors,[]);
+  console.log(JSON.stringify({passed:checks.length,checks,state:{fundId:fund.id,investorA:a.id,investorB:c.id},runtimeErrors:errors}));
+} catch(error) {
+  await b.screenshot(screenshotRoot+'failure-core.png',1440,1100);
+  console.error(error.stack);
+  console.log(JSON.stringify(await b.snapshot()));
+  process.exitCode=1;
+} finally {b.close();}
