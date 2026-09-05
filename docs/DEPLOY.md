@@ -1,264 +1,47 @@
-# 基金管理系统 - 部署文档
+# Fund 部署指南
 
-## 📋 前置要求
+当前部署采用统一 Auth、Redis BFF 和 Vestoria `/fund/` 子路径。不使用旧独立 JWT 登录、默认管理员密码或单站点根路径 Nginx 模板。
 
-- Linux 服务器（Ubuntu 20.04+ 推荐）
-- Docker & Docker Compose
-- 域名（可选，用于 HTTPS）
+## 本地先行
 
----
+按[项目 README](../README.md)启动 Auth 和 Fund。本地 Docker 入口为 `http://localhost:20260`。在隔离测试容器完成[认证与迁移回归](../tests/README.md)，再进行实际登录、viewer/editor、CSRF、页面刷新和业务冒烟。
 
-## 🔧 开发环境配置
+涉及现有 SQLite 的修改，必须在脱敏生产备份副本上测试“新用户第一次登录”，已有用户成功不能排除旧列约束问题。
 
-### 1. 后端配置
+## SG01 参数
 
-```bash
-cd backend
+| 配置 | 生产值 |
+|---|---|
+| 浏览器入口 / `FRONTEND_URL` | `https://vestoria.mr-strawberry.com/fund` |
+| `VITE_BASE_PATH` | `/fund/` |
+| `VITE_API_URL` | `/fund/api/v1` |
+| `AUTH_SERVICE_PUBLIC_URL`、issuer | `https://auth.mr-strawberry.com` |
+| 后端 Auth / JWKS | `http://auth-nginx`、`http://auth-nginx/.well-known/jwks.json` |
+| client / callback | `vestoria` / `https://vestoria.mr-strawberry.com/fund/auth/callback` |
+| session cookie | Secure、HttpOnly，path `/fund/` |
 
-# 创建虚拟环境
-uv venv
-source .venv/bin/activate
+保持现有生产配置的 URL 规范，尤其不要因末尾斜杠生成双斜杠 callback。OAuth client 的 redirect URI 必须精确匹配。前端参数在构建时注入，改值后需重建。
 
-# 安装依赖
-uv pip install -r requirements.txt
+## 发布顺序
 
-# 配置环境变量（可选，使用默认值即可）
-# 如需修改，创建 .env 文件
-echo "SECRET_KEY=your-dev-secret-key" > .env
+1. 对应仓库 PR 合并 main，记录部署 SHA 和回滚 SHA。
+2. 通过 `sg01-daily` 进入已登记工作区，按 infra 清单核对目标，不覆盖私有 `.env`。
+3. 一致性备份 SQLite、记录实际挂载和 schema；有 migration 时先在副本演练。
+4. 按需执行[迁移](../backend/migrations/README.md)，再重建受影响服务；不盲目执行全部历史迁移。
+5. 验收 HTTPS、深层路由和静态资源；未登录为 401，无角色/邮箱未验证为 403。
+6. 验证新用户首次登录、viewer 读取与写入拒绝、editor 写入、全局管理员和 CSRF。
+7. 核对业务数据与日志；记录时间、SHA、执行结果和未覆盖范围。
 
-# 启动后端
-uvicorn app.main:app --reload --port 8000
-```
+完整流程以 [infra 部署检查清单](https://github.com/zephyrli-coding/compound-infra/blob/main/docs/operations/deployment-checklist.md)为准。
 
-### 2. 前端配置
+## 数据与排障
 
-```bash
-cd frontend
+SQLite 默认宿主机 `./data/fund_manager.db` → 容器 `/app/data/fund_manager.db`，可由 `DATA_PATH` 改变宿主机位置。Redis 会话使用独立 volume。重建容器不应删除挂载数据。
 
-# 安装依赖
-npm install
+- 404：区分页面 base path、API 前缀与反向代理，不能把所有请求兜底为 HTML。
+- 401：检查当前 BFF cookie、过期/撤销和 Auth 可用性。
+- 403：检查邮箱、对应应用角色与 CSRF，而不是自动提权为管理员。
+- `Unexpected token ... Internal Server Error`：先查状态码、Content-Type、后端和代理日志；新用户登录失败尤其检查旧 `admins.password_hash NOT NULL` 与 007 迁移。
+- schema 回滚与代码回滚不同，恢复前先保护上线后的新增数据。
 
-# 启动开发服务器（Vite 会自动代理 API 请求到 localhost:8000）
-npm run dev
-```
-
-### 开发环境说明
-
-- 前端地址：`http://localhost:5173`
-- 后端地址：`http://localhost:8000`
-- API 代理：Vite 自动将 `/api/*` 请求转发到后端
-- **无需额外配置**，`vite.config.ts` 已包含代理设置
-
----
-
-## 🚀 生产环境部署
-
-### 方案一：Docker Compose（推荐）
-
-#### 1. 准备服务器
-
-```bash
-# 安装 Docker
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-
-# 安装 Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-```
-
-#### 2. 部署应用
-
-```bash
-# 克隆代码
-git clone https://github.com/Zaaachary/fund_manager.git
-cd fund_manager
-
-# 配置环境变量
-cp .env.example .env
-nano .env
-```
-
-**必须修改的配置：**
-```bash
-# 生成强密钥
-SECRET_KEY=$(openssl rand -hex 32)
-echo "SECRET_KEY=$SECRET_KEY" >> .env
-```
-
-**可选配置：**
-```bash
-# 数据库路径（默认即可）
-DATABASE_URL=sqlite:///data/fund_manager.db
-
-# JWT Token 有效期（天）
-ACCESS_TOKEN_EXPIRE_DAYS=7
-```
-
-#### 3. 启动服务
-
-```bash
-docker-compose up -d
-```
-
-#### 4. 配置 Nginx（反向代理）
-
-创建 `/etc/nginx/sites-available/fund-manager`：
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;  # 替换为你的域名
-
-    # 前端静态文件
-    location / {
-        root /path/to/fund_manager/frontend/dist;
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API 代理到后端
-    location /api/ {
-        proxy_pass http://localhost:8000/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-启用配置：
-```bash
-sudo ln -s /etc/nginx/sites-available/fund-manager /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-#### 5. 配置 HTTPS（Let's Encrypt）
-
-```bash
-# 安装 certbot
-sudo apt install certbot python3-certbot-nginx
-
-# 申请证书
-sudo certbot --nginx -d your-domain.com
-
-# 自动续期测试
-sudo certbot renew --dry-run
-```
-
----
-
-## 🔒 安全配置
-
-### 1. 修改默认密钥
-
-```bash
-# 生成新的密钥
-openssl rand -hex 32
-
-# 更新 .env 文件
-nano .env
-```
-
-### 2. 数据库备份
-
-```bash
-# 手动备份
-cp data/fund_manager.db backup/fund_manager_$(date +%Y%m%d).db
-
-# 自动备份脚本（添加到 crontab）
-# 每天凌晨 3 点备份
-0 3 * * * cp /path/to/fund_manager/data/fund_manager.db /path/to/backup/fund_manager_$(date +\%Y\%m\%d).db
-```
-
-### 3. 防火墙配置
-
-```bash
-# 只允许 80/443 端口
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw deny 8000/tcp  # 禁止直接访问后端
-sudo ufw enable
-```
-
----
-
-## 🔄 更新部署
-
-```bash
-cd fund_manager
-
-# 拉取最新代码
-git pull origin main
-
-# 重建并重启容器
-docker-compose down
-docker-compose up -d --build
-
-# 如果需要保留数据库，确保 data/ 目录已挂载
-```
-
----
-
-## 🐛 故障排查
-
-```bash
-# 查看所有容器日志
-docker-compose logs -f
-
-# 查看特定服务日志
-docker-compose logs -f backend
-docker-compose logs -f frontend
-
-# 进入容器调试
-docker-compose exec backend sh
-
-# 检查后端健康状态
-curl http://localhost:8000/api/v1/health
-```
-
----
-
-## 📁 目录结构
-
-```
-fund_manager/
-├── backend/              # 后端代码
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/             # 前端代码
-│   ├── Dockerfile
-│   └── dist/             # 构建产物
-├── data/                 # 数据库文件（持久化）
-├── docker-compose.yml    # Docker 编排配置
-├── .env                  # 环境变量（不提交到 Git）
-├── .env.example          # 环境变量示例
-└── docs/
-    └── DEPLOY.md         # 本文件
-```
-
----
-
-## 📞 常见问题
-
-### Q: 前端提示 API 404
-A: 检查 Nginx 配置中的 `proxy_pass` 是否正确，确保后端服务已启动
-
-### Q: 数据库连接失败
-A: 检查 `data/` 目录权限：`chmod 755 data/`
-
-### Q: 如何查看后端日志？
-A: `docker-compose logs -f backend` 或 `tail -f backend/app.log`
-
----
-
-## 🔗 相关链接
-
-- 前端地址：`http://your-domain.com`
-- API 文档：`http://your-domain.com/api/v1/docs` (Swagger UI)
-- 默认账号：`admin`（密码由 `DEFAULT_ADMIN_PASSWORD` 环境变量设置；未设置时首次启动会随机生成并打印在日志中。部署后请立即修改密码）
+禁止将删除 `data/`、默认密码重建账号或 `docker compose down -v` 写入常规修复步骤。

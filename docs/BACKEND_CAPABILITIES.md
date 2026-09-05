@@ -1,5 +1,7 @@
 # 基金管理系统 - 后端能力清单
 
+> 认证说明于 2026-09-05 更新；业务字段与计算公式保留作参考，精确行为以目标代码版本及业务测试为准。
+
 ## 📊 数据模型 (SQL Tables)
 
 ### 1. funds (基金表)
@@ -66,21 +68,25 @@
 |------|------|------|
 | id | Integer | 主键 |
 | username | String(50) | 用户名，唯一 |
-| password_hash | String(255) | 密码哈希 |
+| password_hash | String(255)，可空 | 旧密码字段，不作为 SSO 登录凭据 |
 | created_at | DateTime | 创建时间 |
 
 ---
 
-## 🔐 认证模块 (Auth)
+## 认证模块
 
-### API端点
+统一 Auth client 为 vestoria。POST /api/v1/auth/callback 建立 BFF cookie，GET /api/v1/auth/me 返回用户，POST /api/v1/auth/logout 清除会话。无本地密码登录接口。
+
+邮箱已验证的 viewer 只读，editor 读写，全局 auth-service:admin 具备完整权限；写入校验 CSRF。Redis 保存认证 token，admins 表只是本地用户映射，auth_user_id 对应统一用户，password_hash 对 SSO 用户可空。
+
+## API端点
 | 方法 | 路径 | 功能 | 认证 |
 |------|------|------|------|
 | POST | /api/v1/auth/login | 管理员登录 | 否 |
 | GET | /api/v1/auth/me | 获取当前管理员信息 | 是 |
 
 ### 功能
-- ✅ JWT Token认证
+- ✅ BFF cookie 会话与服务端角色门禁
 - ✅ Token有效期7天
 - ✅ Bearer Token方式
 - ✅ Swagger UI支持
@@ -214,6 +220,6 @@ NAV = 总资产 / 总份额
 3. **份额操作** - 申购、赎回、转账
 4. **审计追踪** - 完整的操作历史记录
 5. **数据可视化** - 图表数据支持
-6. **安全认证** - JWT Token认证
+6. **安全认证** - BFF cookie 会话与服务端角色门禁
 
 **前端需要对接的API已全部实现！**
