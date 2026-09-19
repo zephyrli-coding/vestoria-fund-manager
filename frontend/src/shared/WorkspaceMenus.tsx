@@ -5,10 +5,10 @@ import icons from './icons.json';
 function SharedIcon({ name, className }: { name: keyof typeof icons; className?: string }) {
   return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icons[name]} /></svg>;
 }
-export function ProductSwitcher({ current, urls = {} }: { current: string; urls?: Record<string, string> }) {
+export function ProductSwitcher({ current, urls = {}, placement = 'sidebar' }: { current: string; urls?: Record<string, string>; placement?: 'sidebar' | 'header' }) {
   const local = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const product = products.find(item => item.id === current)!;
-  return <details className="cu-disclosure cu-product" data-popover="product">
+  return <details className={`cu-disclosure cu-product${placement === 'header' ? ' cu-product--header' : ''}`} data-popover="product">
     <summary aria-label="切换产品" aria-expanded="false"><span className="cu-product-icon"><SharedIcon name={product.icon as keyof typeof icons} /></span><span className="cu-product-copy side-label"><strong>{product.name}</strong><small>{product.description}</small></span><SharedIcon name="down" className="cu-chevron side-label" /></summary>
     <nav className="cu-menu" aria-label="切换产品">{products.map(item => {
       return <a key={item.id} href={urls[item.id] || (local ? item.localUrl : item.productionUrl)} aria-current={item.id === current ? 'page' : undefined}><SharedIcon name={item.icon as keyof typeof icons} /><span className="cu-product-copy"><strong>{item.name}</strong><small>{item.description}</small></span>{item.id === current && <span className="cu-current">当前</span>}</a>;

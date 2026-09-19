@@ -66,3 +66,10 @@
 .cu-topbar .icon-button { width: 36px; height: 36px; }
 .cu-topbar .badge { font-size: 11px; line-height: 17px; border-radius: 5px; padding: 3px 7px; }
 @media (max-width: 959px) { .cu-topbar .badge { display: none; } }
+
+/* Header placement keeps the same dropdown rows as the sidebar switcher. */
+.cu-product--header > summary { min-height: 38px; padding: 5px 8px; border-color: transparent; background: transparent; }
+.cu-product--header > summary:hover { background: var(--cu-soft); }
+.cu-product--header > summary .cu-product-icon,
+.cu-product--header > summary small { display: none; }
+.cu-product--header > summary strong { font-size: 12px; }
