@@ -15,6 +15,8 @@
 
 ## 设计与阶段记录
 
+- [数值显示精度](iterations/2026-09-19-display-precision.md)：总览/列表金额取整、份额 2 位、详情净值 5 位及本地验证。
+
 - [USD/CNY 估值修正与 Data Terminal API key 配置](iterations/2026-09-19-data-terminal-fx.md)：当前/历史汇率、缓存降级、原币账本保护与本地验收。
 
 - [导入导出设计](DATA_IMPORT_EXPORT_DESIGN.md)：需求/设计，不代表所有格式已经支持。
