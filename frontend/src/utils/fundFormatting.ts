@@ -1,10 +1,14 @@
-const moneyFormatter = new Intl.NumberFormat('zh-CN', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+export type AmountDigits = 0 | 2;
+const amountFormatters = {
+  0: new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+  2: new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+};
 
-export const formatAmount = (value: number): string =>
-  Number.isFinite(value) ? moneyFormatter.format(value) : '--';
+export const formatAmount = (value: number, digits: AmountDigits = 2): string =>
+  Number.isFinite(value) ? amountFormatters[digits].format(value) : '--';
+
+export const formatNav = (value: number): string =>
+  Number.isFinite(value) ? value.toFixed(5) : '--';
 
 export function localDate(value = new Date()): string {
   return [

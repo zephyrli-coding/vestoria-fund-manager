@@ -1,14 +1,14 @@
 import { apiFetch } from '@/config/api';
 import { fetchAllPages, readApiResponse, request } from '@/utils/request';
-import { formatAmount } from '@/utils/fundFormatting';
+import { formatAmount, type AmountDigits } from '@/utils/fundFormatting';
 import type { ApiResponse, Fund, Investor, Operation, PaginatedResponse, FundChartData } from '@/types/api';
 
-export const money = (value: number, currency: string = 'CNY', signed = false) => {
+export const money = (value: number, currency: string = 'CNY', signed = false, digits: AmountDigits = 2) => {
   if (!Number.isFinite(value)) return '--';
-  const rounded = Math.abs(value) < 0.005 ? 0 : value;
-  return (rounded < 0 ? '-' : signed && rounded > 0 ? '+' : '') + (currency === 'USD' ? '$' : '¥') + formatAmount(Math.abs(rounded));
+  const rounded = Math.abs(value) < 0.5 * 10 ** -digits ? 0 : value;
+  return (rounded < 0 ? '-' : signed && rounded > 0 ? '+' : '') + (currency === 'USD' ? '$' : '¥') + formatAmount(Math.abs(rounded), digits);
 };
-export const shares = (value: number) => Number.isFinite(value) ? value.toLocaleString('zh-CN', {maximumFractionDigits: 6}) : '--';
+export const shares = (value: number) => Number.isFinite(value) ? formatAmount(value) : '--';
 export const investorReturn = (investor: Investor, fund: Fund) => investor.share * fund.net_asset_value + investor.total_redeemed - investor.total_invested;
 export const getFunds = (signal?: AbortSignal) => fetchAllPages<Fund>('/funds', {signal});
 export const getInvestors = (id: number, signal?: AbortSignal) => fetchAllPages<Investor>('/funds/' + id + '/investors', {signal});
