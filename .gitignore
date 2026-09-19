@@ -20,6 +20,8 @@ env/
 data/*.db
 data/*.db.backup.*
 data/*.db.original
+data/fx-rates-cache.json
+data/.fx-*
 
 # Environment variables
 .env

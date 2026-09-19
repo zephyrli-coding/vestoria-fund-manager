@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func, case
 from app.models.fund import Fund, FundHistory
 from datetime import datetime
+from decimal import Decimal
 
 
 class FundRepository:
@@ -175,7 +176,6 @@ class FundRepository:
             return []
 
         fund_ids = [f.id for f in funds]
-        fund_map = {f.id: f for f in funds}
 
         # 2. Get all history records for these funds
         hist_query = self.db.query(FundHistory).filter(
@@ -201,18 +201,14 @@ class FundRepository:
         all_dates = sorted(dates)
 
         # 4. Forward-fill: for each fund, compute balance for every date
-        #    fund_id -> {date -> balance_in_cny}
+        #    fund_id -> {date -> raw_balance}
         fund_balance_by_date: dict[int, dict[str, float]] = {}
 
         for fund_id, fh_list in fund_histories.items():
-            fund = fund_map[fund_id]
-            # Convert raw balance to CNY upfront
-            rate = 6.9 if fund.currency == 'USD' else 1.0
-
             # Build date -> raw_balance lookup for this fund's explicit records
             explicit: dict[str, float] = {}
             for h in fh_list:
-                explicit[h.history_date] = h.balance * rate
+                explicit[h.history_date] = h.balance
 
             # Forward-fill across all_dates
             filled: dict[str, float] = {}
@@ -235,11 +231,12 @@ class FundRepository:
         for date in all_dates:
             if start_date and date < start_date:
                 continue
-            total_cny = sum(fund_balance_by_date[f.id][date] for f in funds)
+            total_cny = sum(Decimal(str(fund_balance_by_date[f.id][date])) for f in funds if f.currency == 'CNY')
+            total_usd = sum(Decimal(str(fund_balance_by_date[f.id][date])) for f in funds if f.currency == 'USD')
             results.append({
                 "date": date,
                 "balance_cny": total_cny,
-                "balance_usd": total_cny / 6.9,
+                "balance_usd": total_usd,
                 "total_share": 0.0,
             })
 

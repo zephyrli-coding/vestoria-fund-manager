@@ -1,5 +1,8 @@
 """Fund business logic service."""
 from typing import Optional, List, Dict
+from decimal import Decimal
+from datetime import date
+from app.services.exchange_rates import get_rate_snapshot, converted, money_value
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.transactions import atomic, commit_or_flush
@@ -69,6 +72,15 @@ class FundService:
         fund = self.get_fund(fund_id)
         if not fund:
             raise ValueError("Fund not found")
+
+        if currency is not None and currency != fund.currency:
+            # A metadata edit must never relabel an existing ledger retrospectively.
+            recorded = any((
+                self.db.query(model).filter(model.fund_id == fund_id).first() is not None
+                for model in (FundHistory, Operation, InvestorReturnSnapshot)
+            ))
+            if recorded or fund.balance != 0 or fund.total_share != 0:
+                raise ValueError("已有账务记录的基金不能更改记账币种；请新建另一币种基金")
 
         # Check if name already exists
         if name != fund.name:
@@ -248,11 +260,49 @@ class FundService:
         end_date: Optional[str] = None
     ) -> Dict[str, List[Dict]]:
         """Get aggregated chart data across funds (optionally filtered by tag)."""
+        for value in (start_date, end_date):
+            if value:
+                date.fromisoformat(value)
+        if start_date and end_date and start_date > end_date:
+            raise ValueError("开始日期不能晚于结束日期")
         results = self.fund_repo.get_aggregated_chart_data(tag, start_date, end_date)
+        rates = get_rate_snapshot()
+        output = {"nav": [], "balance": [], "balance_usd": [], "share": [],
+                  "fx": rates.metadata(), "missing_rate_dates": [], "rate_dates": {}}
+        for row in results:
+            reference = rates.on_or_before(row['date'])
+            rate = Decimal(reference['rate']) if reference else None
+            cny = Decimal(str(row['balance_cny']))
+            usd = Decimal(str(row['balance_usd']))
+            usd_as_cny = converted(usd, 'USD', 'CNY', rate)
+            cny_as_usd = converted(cny, 'CNY', 'USD', rate)
+            output['balance'].append({'date': row['date'], 'value': money_value(cny + usd_as_cny) if usd_as_cny is not None else None})
+            output['balance_usd'].append({'date': row['date'], 'value': money_value(usd + cny_as_usd) if cny_as_usd is not None else None})
+            if reference:
+                output['rate_dates'][row['date']] = reference['rate_date']
+            elif cny != 0 or usd != 0:
+                output['missing_rate_dates'].append(row['date'])
+        return output
 
-        return {
-            "nav": [],  # NAV doesn't make sense for aggregate across funds
-            "balance": [{"date": r["date"], "value": r["balance_cny"]} for r in results],
-            "balance_usd": [{"date": r["date"], "value": r["balance_usd"]} for r in results],
-            "share": [{"date": r["date"], "value": r["total_share"]} for r in results]
-        }
+    def get_valuation(self, tag=None):
+        rates = get_rate_snapshot()
+        latest = rates.rows[-1] if rates.rows else None
+        rate = Decimal(latest['rate']) if latest else None
+        funds = self.fund_repo.get_all(limit=self.fund_repo.count(), tag=tag)
+        items = []
+        totals = {'CNY': Decimal(0), 'USD': Decimal(0)}
+        native = {'CNY': Decimal(0), 'USD': Decimal(0)}
+        for fund in funds:
+            native[fund.currency] += Decimal(str(fund.balance))
+            item = {'id': fund.id}
+            for target in ('CNY', 'USD'):
+                value = converted(fund.balance, fund.currency, target, rate)
+                item[target] = money_value(value)
+                if value is None:
+                    totals[target] = None
+                elif totals[target] is not None:
+                    totals[target] += Decimal(str(item[target]))
+            items.append(item)
+        return {'fx': rates.metadata(), 'items': items,
+                'totals': {k: money_value(v) for k, v in totals.items()},
+                'native_totals': {k: money_value(v) for k, v in native.items()}}

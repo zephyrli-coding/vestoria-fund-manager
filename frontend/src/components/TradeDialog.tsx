@@ -23,7 +23,7 @@ export function TradeDialog({ kind, fund, investors, investorId, onClose, onComp
   const selected=investors.find(item=>item.id===Number(selectedId));
   const number=Number(amount);
   const movement=selected && ['redeem','transfer'].includes(kind) ? previewMovement(selected.share,fund.net_asset_value,number,amountType) : null;
-  const currency=fund.currency === 'USD' ? 'USD / $' : 'CNY / ¥';
+  const currency=fund.currency === 'USD' ? 'USD / 美元' : 'CNY / 元';
   const submit=async (event:React.FormEvent)=>{
     event.preventDefault();
     if(pending.current || !canEdit)return;
