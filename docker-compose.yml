@@ -19,6 +19,11 @@ services:
       - DATABASE_URL=sqlite:////app/data/fund_manager.db
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_DAYS=7
+      - DATA_TERMINAL_API_URL=${DATA_TERMINAL_API_URL:-http://data-terminal-backend:8000/api/v1}
+      - DATA_TERMINAL_API_KEY=${DATA_TERMINAL_API_KEY:-}
+      - DATA_TERMINAL_TIMEOUT_SECONDS=${DATA_TERMINAL_TIMEOUT_SECONDS:-8}
+      - FX_CACHE_PATH=/app/data/fx-rates-cache.json
+      - FX_CACHE_TTL_SECONDS=${FX_CACHE_TTL_SECONDS:-300}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://host.docker.internal:20263}
       - AUTH_SERVICE_JWKS_URL=${AUTH_SERVICE_JWKS_URL:-http://host.docker.internal:20263/.well-known/jwks.json}
       - AUTH_SERVICE_ISSUER=${AUTH_SERVICE_ISSUER:-http://localhost:20263}

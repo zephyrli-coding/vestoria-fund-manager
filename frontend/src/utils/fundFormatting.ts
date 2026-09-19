@@ -1,6 +1,3 @@
-// Existing estimate only; this is not a live exchange rate.
-export const EXISTING_USD_CNY_ESTIMATE = 6.9;
-
 const moneyFormatter = new Intl.NumberFormat('zh-CN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,

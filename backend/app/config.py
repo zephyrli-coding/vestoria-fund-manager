@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     # Project root
     PROJECT_ROOT: str = ""
 
+    # Backend-only Data Terminal credentials; never expose these as VITE_*.
+    DATA_TERMINAL_API_URL: str = "http://data-terminal-backend:8000/api/v1"
+    DATA_TERMINAL_API_KEY: str = ""
+    DATA_TERMINAL_TIMEOUT_SECONDS: float = 8
+    FX_CACHE_PATH: str = "./data/fx-rates-cache.json"
+    FX_CACHE_TTL_SECONDS: int = 300
+
     class Config:
         env_file = ".env"
         case_sensitive = True

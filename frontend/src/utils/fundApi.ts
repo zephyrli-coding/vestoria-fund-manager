@@ -3,15 +3,23 @@ import { fetchAllPages, readApiResponse, request } from '@/utils/request';
 import { formatAmount } from '@/utils/fundFormatting';
 import type { ApiResponse, Fund, Investor, Operation, PaginatedResponse, FundChartData } from '@/types/api';
 
-export const money = (value: number, currency: string = 'CNY', signed = false) =>
-  (value < 0 ? '-' : signed && value > 0 ? '+' : '') + (currency === 'USD' ? '$' : '¥') + formatAmount(Math.abs(value));
+export const money = (value: number, currency: string = 'CNY', signed = false) => {
+  if (!Number.isFinite(value)) return '--';
+  const rounded = Math.abs(value) < 0.005 ? 0 : value;
+  return (rounded < 0 ? '-' : signed && rounded > 0 ? '+' : '') + (currency === 'USD' ? '$' : '¥') + formatAmount(Math.abs(rounded));
+};
 export const shares = (value: number) => Number.isFinite(value) ? value.toLocaleString('zh-CN', {maximumFractionDigits: 6}) : '--';
 export const investorReturn = (investor: Investor, fund: Fund) => investor.share * fund.net_asset_value + investor.total_redeemed - investor.total_invested;
 export const getFunds = (signal?: AbortSignal) => fetchAllPages<Fund>('/funds', {signal});
 export const getInvestors = (id: number, signal?: AbortSignal) => fetchAllPages<Investor>('/funds/' + id + '/investors', {signal});
 export async function getFund(id: number, signal?: AbortSignal) { return (await request<ApiResponse<Fund>>('/funds/' + id, {signal})).data; }
 export async function getInvestor(fundId: number, investorId: number, signal?: AbortSignal) { return (await request<ApiResponse<Investor>>('/funds/' + fundId + '/investors/' + investorId, {signal})).data; }
-export type ChartSeries = FundChartData & { balance_usd?: {date: string; value: number}[] };
+export interface FxStatus { available: boolean; latest: {rate:string;rate_date:string;source:string} | null; stale:boolean; cached:boolean; warning:string|null; }
+export interface Valuation { fx: FxStatus; items: {id:number;CNY:number|null;USD:number|null}[]; totals: {CNY:number|null;USD:number|null}; native_totals: {CNY:number;USD:number}; }
+export async function getValuation(tag = '', signal?: AbortSignal) {
+  return (await request<ApiResponse<Valuation>>('/funds/valuation/current' + (tag ? '?tag='+encodeURIComponent(tag) : ''), {signal})).data;
+}
+export type ChartSeries = Omit<FundChartData, 'balance'> & {balance:{date:string;value:number|null}[]; balance_usd?: {date: string; value: number|null}[]; fx?: FxStatus; missing_rate_dates?: string[] };
 export async function getChart(id: number | null, query: URLSearchParams, signal?: AbortSignal) {
   return (await request<ApiResponse<ChartSeries>>((id === null ? '/funds/chart/aggregate' : '/funds/' + id + '/chart') + '?' + query, {signal})).data;
 }

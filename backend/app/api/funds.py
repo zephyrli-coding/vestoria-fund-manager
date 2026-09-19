@@ -118,6 +118,11 @@ def create_fund(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
+@router.get("/valuation/current", response_model=ResponseModel[dict])
+def get_valuation(tag: Optional[str] = None, service: FundService = Depends(get_fund_service)):
+    return ResponseModel(data=service.get_valuation(tag))
+
+
 @router.get("/{fund_id}", response_model=ResponseModel[FundResponse])
 def get_fund(
     fund_id: int,
@@ -142,7 +147,7 @@ def update_fund(
         fund = service.update_fund(fund_id, request.name, request.currency, request.tags, start_date=request.start_date)
         return ResponseModel(data=fund, message="Fund updated successfully")
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=404 if str(e) == "Fund not found" else 409, detail=str(e))
 
 
 @router.delete("/{fund_id}", response_model=ResponseModel[None])
@@ -206,11 +211,10 @@ def get_aggregated_chart_data(
     service: FundService = Depends(get_fund_service)
 ):
     """Get aggregated chart data across all funds (optionally filtered by tag)."""
-    result = service.get_aggregated_chart_data(
-        tag=tag,
-        start_date=start_date,
-        end_date=end_date
-    )
+    try:
+        result = service.get_aggregated_chart_data(tag=tag, start_date=start_date, end_date=end_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     return ResponseModel(data=result)
 
 

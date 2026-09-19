@@ -15,6 +15,8 @@
 
 ## 设计与阶段记录
 
+- [USD/CNY 估值修正与 Data Terminal API key 配置](iterations/2026-09-19-data-terminal-fx.md)：当前/历史汇率、缓存降级、原币账本保护与本地验收。
+
 - [导入导出设计](DATA_IMPORT_EXPORT_DESIGN.md)：需求/设计，不代表所有格式已经支持。
 - [前端设计稿](FRONTEND_DESIGN.md)：旧设计参考；旧登录表单、token store、分支不再适用。
 - [导入导出任务记录](IMPORT_EXPORT_TODO.md)、[投资者快照任务记录](TODO_LIST.md)、[早期前端进度](../frontend/PROGRESS.md)：保留原阶段，不作为当前分支或发布状态。
