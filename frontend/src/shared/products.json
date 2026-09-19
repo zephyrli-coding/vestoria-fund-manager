@@ -1,6 +1,42 @@
 [
-  {"id":"navigation","name":"Navigation","description":"常用工具与书签","icon":"compass","localUrl":"http://localhost:20261/","productionUrl":"https://navigation.mr-strawberry.com/"},
-  {"id":"vestoria","name":"Fund Manager","description":"基金与投资者","icon":"wallet","localUrl":"http://localhost:20260/","productionUrl":"https://vestoria.mr-strawberry.com/fund/"},
-  {"id":"data-terminal","name":"Data Terminal","description":"行情与研究","icon":"chart","localUrl":"http://localhost:20262/","productionUrl":"https://vestoria.mr-strawberry.com/data/"},
-  {"id":"account","name":"Account","description":"账号与访问权限","icon":"user","localUrl":"http://localhost:20263/auth/profile","productionUrl":"https://auth.mr-strawberry.com/auth/profile"}
+  {
+    "id": "navigation",
+    "name": "Navigation",
+    "description": "常用工具与书签",
+    "icon": "compass",
+    "localUrl": "http://localhost:20261/",
+    "productionUrl": "https://navigation.mr-strawberry.com/"
+  },
+  {
+    "id": "vestoria",
+    "name": "Fund Manager",
+    "description": "基金与投资者",
+    "icon": "wallet",
+    "localUrl": "http://localhost:20260/",
+    "productionUrl": "https://vestoria.mr-strawberry.com/fund/"
+  },
+  {
+    "id": "data-terminal",
+    "name": "Data Terminal",
+    "description": "行情与研究",
+    "icon": "chart",
+    "localUrl": "http://localhost:20262/",
+    "productionUrl": "https://vestoria.mr-strawberry.com/data/"
+  },
+  {
+    "id": "knowledge-hub",
+    "name": "Library",
+    "description": "文章剪藏与研究报告",
+    "icon": "book",
+    "localUrl": "http://localhost:20264/",
+    "productionUrl": "https://library.mr-strawberry.com/"
+  },
+  {
+    "id": "account",
+    "name": "Account",
+    "description": "账号与访问权限",
+    "icon": "user",
+    "localUrl": "http://localhost:20263/auth/profile",
+    "productionUrl": "https://auth.mr-strawberry.com/auth/profile"
+  }
 ]
