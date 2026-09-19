@@ -7,6 +7,7 @@
     menu.querySelector('summary')?.setAttribute('aria-expanded', 'false');
     if (returnFocus) menu.querySelector('summary')?.focus();
   };
+  window.matchMedia('(max-width: 959px)').addEventListener('change', () => menus().forEach(menu => close(menu)));
   document.addEventListener('toggle', event => {
     const menu = event.target;
     if (!(menu instanceof HTMLDetailsElement) || !menu.hasAttribute('data-popover')) return;

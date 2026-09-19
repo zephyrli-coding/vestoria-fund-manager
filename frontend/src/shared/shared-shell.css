@@ -73,3 +73,42 @@
 .cu-product--header > summary .cu-product-icon,
 .cu-product--header > summary small { display: none; }
 .cu-product--header > summary strong { font-size: 12px; }
+
+/* Optional sidebar account placement; header menus (Library) remain unchanged. */
+.cu-account--sidebar { margin-top: 12px; }
+.cu-account--sidebar > summary { height: auto; min-height: 76px; padding: 10px; border: 1px solid var(--cu-line); background: #fff; border-radius: 9px; }
+.cu-account--sidebar > summary:hover { background: var(--cu-soft); }
+.cu-account-copy { flex: 1; min-width: 0; line-height: 1.5; }
+.cu-account-caption { display: block; font-size: 10px; color: var(--cu-muted); }
+.cu-account--sidebar .cu-account-name { display: block; max-width: none; font-size: 12px; font-weight: 600; }
+.cu-account-role { display: block; font-size: 10px; color: var(--cu-muted); overflow-wrap: anywhere; }
+.cu-account--sidebar .cu-menu { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; max-height: min(420px, calc(100dvh - 180px)); overflow-y: auto; }
+.cu-sidebar-header { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; flex-shrink: 0; }
+.cu-sidebar-header .cu-brand { margin-bottom: 0; }
+.cu-drawer-close, .cu-mobile-topbar { display: none; }
+.cu-sidebar-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.cu-sidebar .sidebar-bottom, .cu-sidebar .sidebar-footer { flex-shrink: 0; }
+.cu-sidebar-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--cu-muted); font-size: 12px; cursor: pointer; }
+.cu-sidebar-toggle:hover { background: var(--cu-soft); }
+@media (min-width: 960px) {
+  .sidebar-collapsed .cu-account--sidebar > summary { justify-content: center; padding: 8px 0; min-height: 48px; }
+  .sidebar-collapsed .cu-account--sidebar .cu-chevron { display: none; }
+  .sidebar-collapsed .cu-sidebar-toggle { justify-content: center; padding: 10px 0; }
+}
+@media (max-width: 959px) {
+  .cu-drawer-close { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; padding: 5px; border: 0; border-radius: 7px; background: transparent; color: var(--cu-muted); cursor: pointer; }
+  .cu-drawer-close svg { width: 18px; height: 18px; }
+  .cu-mobile-topbar { position: relative; display: flex; align-items: center; justify-content: space-between; height: 62px; padding: 0 12px; gap: 12px; background: #fff; border-bottom: 1px solid var(--cu-line); }
+  .cu-mobile-topbar-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .cu-mobile-topbar .cu-nav-toggle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; padding: 8px; border: 0; border-radius: 7px; background: transparent; color: var(--cu-muted); cursor: pointer; }
+  .cu-mobile-topbar .cu-nav-toggle svg { width: 20px; height: 20px; }
+  .cu-mobile-brand { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 7px; color: var(--cu-text); font-size: 18px; font-weight: 600; letter-spacing: -.7px; white-space: nowrap; text-decoration: none; }
+  .cu-mobile-brand img { display: block; width: 32px; height: 32px; flex-shrink: 0; }
+  .cu-mobile-topbar .cu-account-name, .cu-mobile-topbar .cu-chevron { display: none; }
+  .cu-mobile-topbar .cu-account > summary { padding: 5px; }
+  .cu-mobile-topbar .cu-menu { max-height: calc(100dvh - 90px); overflow-y: auto; }
+  .cu-sidebar-toggle { display: none; }
+  .cu-account--sidebar .cu-menu { width: 100%; max-width: none; }
+}
+
+.cu-menu-name { display: block; margin-bottom: 4px; font-size: 12px; color: var(--cu-text); }

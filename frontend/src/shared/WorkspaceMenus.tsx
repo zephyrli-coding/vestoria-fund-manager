@@ -15,15 +15,15 @@ export function ProductSwitcher({ current, urls = {}, placement = 'sidebar' }: {
     })}</nav>
   </details>;
 }
-export function AccountMenu({ name, email, accountUrl, logout }: { name: string; email?: string; accountUrl: string; logout: () => Promise<void> }) {
+export function AccountMenu({ name, email, accountUrl, logout, placement = 'header', role }: { name: string; email?: string; accountUrl: string; logout: () => Promise<void>; placement?: 'header' | 'sidebar'; role?: string }) {
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState('');
   async function leave() {
     setLeaving(true); setError('');
     try { await logout(); } catch { setError('退出未完成，请重试。'); } finally { setLeaving(false); }
   }
-  return <details className="cu-disclosure cu-account" data-popover="account">
-    <summary aria-label="账号菜单" aria-expanded="false"><span className="cu-avatar">{name.slice(0, 1).toUpperCase()}</span><span className="cu-account-name">{name}</span><SharedIcon name="down" className="cu-chevron" /></summary>
-    <div className="cu-menu"><p className="cu-account-email">{email}</p><a href={accountUrl}><SharedIcon name="user" />账号中心</a><button type="button" className="cu-logout" disabled={leaving} onClick={() => void leave()}><SharedIcon name="logout" />{leaving ? '正在退出…' : '退出所有应用'}</button>{error && <p role="alert" className="cu-account-email">{error}</p>}</div>
+  return <details className={`cu-disclosure cu-account${placement === 'sidebar' ? ' cu-account--sidebar' : ''}`} data-popover="account">
+    <summary aria-label="账号菜单" aria-expanded="false"><span className="cu-avatar">{name.slice(0, 1).toUpperCase()}</span>{placement === 'sidebar' ? <span className="cu-account-copy side-label"><span className="cu-account-caption">账号中心</span><strong className="cu-account-name">{name}</strong>{role && <small className="cu-account-role">{role}</small>}</span> : <span className="cu-account-name">{name}</span>}<SharedIcon name={placement === 'sidebar' ? 'up' : 'down'} className="cu-chevron" /></summary>
+    <div className="cu-menu"><p className="cu-account-email">{role && <strong className="cu-menu-name">{name}</strong>}{email}{role && <small className="cu-account-role">{role}</small>}</p><a href={accountUrl}><SharedIcon name="user" />账号中心</a><button type="button" className="cu-logout" disabled={leaving} onClick={() => void leave()}><SharedIcon name="logout" />{leaving ? '正在退出…' : '退出所有应用'}</button>{error && <p role="alert" className="cu-account-email">{error}</p>}</div>
   </details>;
 }
