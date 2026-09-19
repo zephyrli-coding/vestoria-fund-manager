@@ -23,7 +23,7 @@ export default function MainLayout(){
 </div>
       <div className="sidebar-bottom"><AccountMenu placement="sidebar" role={user?.can_edit ? 'Editor · 可编辑' : 'Viewer · 只读'} name={displayName} email={user?.email} accountUrl={AUTH_SERVICE_URL+'/auth/profile'} logout={logout} /><p className="cu-sidebar-note side-label">独立应用 · 统一账号</p></div>
     </aside>
-    <div className="workspace"><div className="cu-mobile-nav"><button ref={menuButton} className="mobile-menu" aria-label="打开导航" aria-controls="product-navigation" aria-expanded={open} onClick={()=>setOpen(true)}><Menu size={18} />导航</button></div>
+    <div className="workspace"><header className="cu-mobile-topbar"><div className="cu-mobile-topbar-left"><button ref={menuButton} className="mobile-menu cu-nav-toggle" aria-label="打开导航" aria-controls="product-navigation" aria-expanded={open} onClick={()=>setOpen(true)}><Menu size={18} /></button><Link to="/" className="cu-mobile-brand" aria-label="Compound 首页"><img src={`${import.meta.env.BASE_URL}brand-strawberry-a.png`} alt="" width={32} height={32} /><span>Compound</span></Link></div><AccountMenu name={displayName} email={user?.email} role={user?.can_edit ? 'Editor · 可编辑' : 'Viewer · 只读'} accountUrl={AUTH_SERVICE_URL+'/auth/profile'} logout={logout} /></header>
       <main className="content cu-content" id="main-content" tabIndex={-1}>{!user?.can_edit&&<Notice>当前为 Viewer 只读模式，可查看基金、投资者、历史及导出单基金记录。录入与修改需管理员授权。</Notice>}<Outlet/><footer className="app-footer cu-footer"><span>Compound · Fund Manager</span><span>独立应用 · 统一账号</span></footer></main>
     </div>
   </div>;
