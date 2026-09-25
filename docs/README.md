@@ -15,6 +15,8 @@
 
 ## 设计与阶段记录
 
+- [币种与金额单位历史诊断](iterations/2026-09-17-currency-unit-diagnosis.md)：汇率修复前的口径问题、只读检查及方案讨论；后续实现见 9 月 19 日记录。
+
 - [数值显示精度](iterations/2026-09-19-display-precision.md)：总览/列表金额取整、份额 2 位、详情净值 5 位及本地验证。
 
 - [USD/CNY 估值修正与 Data Terminal API key 配置](iterations/2026-09-19-data-terminal-fx.md)：当前/历史汇率、缓存降级、原币账本保护与本地验收。
