@@ -145,3 +145,23 @@ def test_redirect_without_cache_is_not_followed(tmp_path,monkeypatch):
     transport(monkeypatch,redirect)
     with pytest.raises(BenchmarkUnavailable):service(tmp_path).history(['sp500'],START,END)
     assert len(calls)==1
+
+
+def test_five_benchmarks_include_gold_and_historical_fx():
+    from app.services.benchmark_client import DEFINITIONS, parse_ids
+    ids = parse_ids(','.join(DEFINITIONS))
+    assert len(ids) == 5
+    items = [item(key, currency, asset) for key,(asset,currency,_) in DEFINITIONS.items()]
+    items[-1]['return_type'] = 'futures_price'
+    data = dict(payload(), items=items)
+    validate_history(data, ids, START, END)
+    native = compare(NAV, items, 'CNY', 'native', START, END)
+    assert len(native['series']) == 5
+    gold = native['series'][-1]
+    assert gold['asset_id'] == 'GC=F' and gold['return_type'] == 'futures_price'
+    assert gold['total_return'] == pytest.approx(.1)
+    converted = compare(NAV, items, 'CNY', 'fund', START, END, rates())['series'][-1]
+    assert converted['total_return'] == pytest.approx(880/700-1)
+    assert converted['points'][-1]['fx_date'] == '2025-01-06'
+    with pytest.raises(ValueError):
+        parse_ids(','.join(DEFINITIONS) + ',gold')

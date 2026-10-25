@@ -18,6 +18,7 @@ DEFINITIONS = {
     'btc': ('BTCUSDT', 'USDT', 'BTC / USDT'),
     'sse_composite': ('000001.SS', 'CNY', '上证指数'),
     'nasdaq100': ('^NDX', 'USD', '纳斯达克 100'),
+    'gold': ('GC=F', 'USD', '黄金期货'),
 }
 
 
@@ -27,8 +28,8 @@ class BenchmarkUnavailable(Exception):
 
 def parse_ids(raw):
     ids = raw.split(',')
-    if not ids or len(ids) > 4 or len(set(ids)) != len(ids) or any(i not in DEFINITIONS for i in ids):
-        raise ValueError('请选择 1 至 4 个不同的有效基准')
+    if not ids or len(ids) > len(DEFINITIONS) or len(set(ids)) != len(ids) or any(i not in DEFINITIONS for i in ids):
+        raise ValueError(f'请选择 1 至 {len(DEFINITIONS)} 个不同的有效基准')
     return ids
 
 
