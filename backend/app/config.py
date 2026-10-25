@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     DATA_TERMINAL_TIMEOUT_SECONDS: float = 8
     FX_CACHE_PATH: str = "./data/fx-rates-cache.json"
     FX_CACHE_TTL_SECONDS: int = 300
+    BENCHMARK_CACHE_PATH: str = "./data/benchmark-cache.json"
 
     class Config:
         env_file = ".env"

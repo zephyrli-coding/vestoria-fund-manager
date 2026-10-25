@@ -15,6 +15,8 @@
 
 ## 设计与阶段记录
 
+- [净值基准比较](iterations/2026-10-25-benchmark-comparison.md)：Fund × Data 四基准、多币种口径、日期对齐与故障降级（本地开发，未上线）。
+
 - [币种与金额单位历史诊断](iterations/2026-09-17-currency-unit-diagnosis.md)：汇率修复前的口径问题、只读检查及方案讨论；后续实现见 9 月 19 日记录。
 
 - [数值显示精度](iterations/2026-09-19-display-precision.md)：总览/列表金额取整、份额 2 位、详情净值 5 位及本地验证。
