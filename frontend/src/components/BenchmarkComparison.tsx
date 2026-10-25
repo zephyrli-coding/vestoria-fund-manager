@@ -14,6 +14,7 @@ const options = [
   { id: 'btc', name: 'BTC / USDT', color: '#8a53b3' },
   { id: 'sse_composite', name: '上证指数', color: '#167f72' },
   { id: 'nasdaq100', name: '纳斯达克 100', color: '#c15068' },
+  { id: 'gold', name: '黄金期货', color: '#ad951b' },
 ];
 type Point = { date: string; value: number | null; source_date: string | null; fx_date: string | null };
 type Series = { id: string; name: string; asset_id: string; currency: string; source: string; return_type: string;
@@ -22,6 +23,7 @@ type Comparison = { effective_range: DateRange | null; fund_return: number | nul
   fund_points: { date: string; value: number; normalized: number }[]; series: Series[]; warning: string | null;
   data_status?: { cached: boolean; checked_at: number; warning: string | null }; fx_status?: { warning: string | null } | null };
 type ChartRow = { ts: number; date: string; fund: number | null; [key: string]: number | string | null };
+const returnLabels: Record<string, string> = { price_index: '价格指数', spot_price: '现货价格', futures_price: '期货连续合约报价' };
 const percent = (value: number | null) => value == null ? '—' : `${value > 0 ? '+' : ''}${(value * 100).toFixed(2)}%`;
 const pointValue = (value: number | null, mode: string) => value == null ? '—' : mode === 'return' ? percent(value - 1) : value.toFixed(4);
 const dataBase = (import.meta.env.VITE_DATA_TERMINAL_URL || 'https://vestoria.mr-strawberry.com/data').replace(/\/$/, '');
@@ -127,12 +129,12 @@ export function BenchmarkComparison({ fundId, currency, range, revision, childre
               <Line dataKey="fund" name="基金" type="linear" stroke="#3567d8" strokeWidth={2.6} connectNulls dot={{ r: 2.5 }} activeDot={{ r: 4 }} isAnimationActive={false} />
             </LineChart></ResponsiveContainer>
           </div>
-          <p className="footnote">基金圆点为真实记录，连线仅辅助阅读，未补造每日净值。各市场日收盘口径，非同一瞬间估值；股票指数不含分红再投资。</p>
+          <p className="footnote">基金圆点为真实记录，连线仅辅助阅读，未补造每日净值。各市场日收盘口径，非同一瞬间估值；股票指数不含分红再投资。{ids.includes('gold') && '黄金为 GC=F 美元计价期货连续合约报价，含换月影响，不代表持仓总收益。'}</p>
           <div className="table-wrap benchmark-summary"><table><thead><tr><th>对比对象</th><th>区间收益</th><th>基金收益差</th><th>数据口径</th></tr></thead>
             <tbody><tr><td><strong>基金</strong></td><td>{percent(result.fund_return)}</td><td>—</td><td>{currency} 账务净值</td></tr>
               {result.series.map(series => <tr key={series.id}><td><a target="_blank" rel="noreferrer" href={`${dataBase}/assets/${encodeURIComponent(series.asset_id)}`}>{series.name} ↗</a></td>
                 <td>{percent(series.total_return)}</td><td>{series.excess_pp == null ? '—' : `${series.excess_pp > 0 ? '+' : ''}${series.excess_pp.toFixed(2)} 个百分点`}</td>
-                <td className="wrap-cell">{series.warning || `${series.source} · ${series.currency} · ${series.return_type === 'price_index' ? '价格指数' : '现货价格'}`}</td></tr>)}</tbody></table></div>
+                <td className="wrap-cell">{series.warning || `${series.source} · ${series.currency} · ${returnLabels[series.return_type] || series.return_type}`}</td></tr>)}</tbody></table></div>
           <details className="chart-data"><summary>查看对比数据（{rows.length} 个日期）</summary><div className="table-wrap chart-data-table"><table><thead><tr><th>日期</th><th>基金</th>{plotted.map(series => <th key={series.id}>{series.name}</th>)}</tr></thead><tbody>
             {rows.map(row => <tr key={row.date}><td>{row.date}</td><td>{row.fund == null ? '未记录' : display === 'return' ? `${row.fund.toFixed(2)}%` : row.fund.toFixed(4)}</td>
               {plotted.map(series => <td key={series.id}>{row[series.id] == null ? '缺失' : `${Number(row[series.id]).toFixed(display === 'return' ? 2 : 4)}${display === 'return' ? '%' : ''}`}</td>)}</tr>)}
