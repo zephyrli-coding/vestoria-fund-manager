@@ -1,0 +1,28 @@
+.benchmark-section { min-width: 0; }
+.benchmark-selector, .benchmark-toolbar, .benchmark-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.benchmark-selector { padding: 14px 0; border-top: 1px solid var(--border-color); }
+.benchmark-label { font-size: 12px; color: var(--text-muted); margin-right: 5px; }
+.benchmark-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #dce2ea; background: #fff; border-radius: 18px; padding: 7px 11px; font-size: 12px; color: #536278; }
+.benchmark-chip.selected { border-color: #8aa9e6; background: #f0f5ff; color: #224eaa; }
+.benchmark-chip span, .benchmark-legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.benchmark-toolbar { justify-content: space-between; margin: 4px 0 10px; }
+.benchmark-toolbar label { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); }
+.benchmark-toolbar select { max-width: 100%; }
+.benchmark-range { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 14px; font-size: 11px; color: var(--text-muted); margin: 18px 0 12px; }
+.benchmark-range strong { color: #4b5d75; font-weight: 500; }
+.benchmark-legend { gap: 9px 18px; font-size: 11px; margin-bottom: 10px; }
+.benchmark-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.benchmark-chart { height: 330px; }
+.benchmark-tooltip { padding: 12px 14px; background: #fff; border: 1px solid #dce2ea; border-radius: 8px; font-size: 11px; box-shadow: 0 5px 18px #24324814; max-width: 250px; }
+.benchmark-tooltip>div { margin-top: 7px; }
+.benchmark-tooltip small { display: block; color: #7c8799; margin-top: 2px; }
+.benchmark-summary { margin: 16px 0; }
+.benchmark-summary table { min-width: 640px; }
+.benchmark-summary td:last-child { max-width: 360px; }
+@media (max-width: 600px) {
+  .benchmark-label { width: 100%; }
+  .benchmark-chip { font-size: 11px; padding: 7px 10px; }
+  .benchmark-chart { height: 280px; }
+  .benchmark-toolbar { align-items: flex-start; gap: 12px; }
+  .benchmark-range { line-height: 1.6; }
+}

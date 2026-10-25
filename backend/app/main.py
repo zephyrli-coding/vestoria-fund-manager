@@ -7,7 +7,7 @@ from app.config import get_settings
 from app.db import engine, Base
 # Import models to register them with Base.metadata
 import app.models
-from app.api import auth, funds, investors, operation_history, operations
+from app.api import auth, funds, investors, operation_history, operations, benchmarks
 from app.api.auth import get_current_admin
 
 settings = get_settings()
@@ -33,6 +33,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["Authentication"])
 protected = [Depends(get_current_admin)]
+app.include_router(benchmarks.router, prefix=settings.API_V1_PREFIX, tags=['Benchmarks'], dependencies=protected)
 app.include_router(operation_history.router, prefix=f"{settings.API_V1_PREFIX}", tags=["Operation History"], dependencies=protected)
 app.include_router(funds.router, prefix=f"{settings.API_V1_PREFIX}/funds", tags=["Funds"], dependencies=protected)
 app.include_router(investors.router, prefix=f"{settings.API_V1_PREFIX}/funds/{{fund_id}}/investors", tags=["Investors"], dependencies=protected)
