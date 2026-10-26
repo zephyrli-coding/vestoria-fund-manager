@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from jose import JWTError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth_client import decode_auth_token
@@ -136,12 +137,6 @@ def get_current_admin(
 ) -> Admin:
     """Resolve a local user and enforce viewer/editor permissions."""
     _, session_data, userinfo = _load_userinfo(request)
-    if not userinfo.get("email_verified", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email verification required",
-        )
-
     can_view, can_edit = _role_flags(userinfo)
     if not can_view:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Fund access required")
@@ -156,6 +151,47 @@ def get_current_admin(
     admin.can_edit = can_edit
     admin.display_name = _display_name(userinfo)
     return admin
+
+
+def _resolve_local_admin(db: Session, userinfo: dict) -> Admin:
+    """Bind by stable subject; email may only claim verified, unbound legacy rows."""
+    subject = str(UUID(userinfo["sub"]))
+    email = userinfo["email"]
+    conflict = "Account mapping conflict; contact an administrator"
+    try:
+        admin = db.query(Admin).filter(Admin.auth_user_id == subject).first()
+        if admin is None:
+            admin = db.query(Admin).filter(Admin.email == email).first()
+            if admin is not None:
+                if admin.auth_user_id is not None or not userinfo.get("email_verified", False):
+                    raise HTTPException(status_code=409, detail=conflict)
+                if not admin.is_active:
+                    raise HTTPException(status_code=401, detail="User not found")
+                # A concurrent callback must not replace another subject's claim.
+                claimed = db.query(Admin).filter(
+                    Admin.id == admin.id, Admin.auth_user_id.is_(None), Admin.is_active.is_(True)
+                ).update({Admin.auth_user_id: subject}, synchronize_session=False)
+                if claimed != 1:
+                    db.rollback()
+                    raise HTTPException(status_code=409, detail=conflict)
+                db.expire(admin)
+            else:
+                base = userinfo.get("nickname") or email.split("@")[0]
+                admin = Admin(auth_user_id=subject, username=f"{base}-{uuid4().hex[:6]}",
+                              email=email, is_active=True)
+                db.add(admin)
+        if not admin.is_active:
+            raise HTTPException(status_code=401, detail="User not found")
+        admin.email = email
+        db.commit()
+        db.refresh(admin)
+        return admin
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=conflict) from exc
 
 
 @router.post("/callback", response_model=ResponseModel[CallbackResponse])
@@ -204,38 +240,11 @@ def auth_callback(code: str, response: Response, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to load user")
 
     userinfo = userinfo_res.json()
-    if not userinfo.get("email_verified", False):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Email verification required")
     can_view, can_edit = _role_flags(userinfo)
     if not can_view:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Fund access required")
 
-    auth_user_id = UUID(userinfo["sub"])
-    email = userinfo["email"]
-    nickname = userinfo.get("nickname")
-    claimed_by_email = False
-    admin = db.query(Admin).filter(Admin.auth_user_id == str(auth_user_id)).first()
-    if not admin:
-        admin = db.query(Admin).filter(Admin.email == userinfo["email"]).first()
-        if admin:
-            admin.auth_user_id = str(auth_user_id)
-            claimed_by_email = True
-    if not admin:
-        base = nickname or email.split("@")[0]
-        admin = Admin(
-            auth_user_id=str(auth_user_id),
-            username=f"{base}-{uuid4().hex[:6]}",
-            email=email,
-            is_active=True,
-        )
-        db.add(admin)
-        db.commit()
-        db.refresh(admin)
-    elif claimed_by_email or admin.email != email:
-        if admin.email != email:
-            admin.email = email
-        db.commit()
-        db.refresh(admin)
+    admin = _resolve_local_admin(db, userinfo)
 
     session_id, csrf_token = session_store.create(tokens)
     set_session_cookies(response, session_id, csrf_token)

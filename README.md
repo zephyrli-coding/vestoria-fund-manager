@@ -1,5 +1,7 @@
 # Vestoria Fund Manager
 
+> 2026-10-26 开发分支：邮箱验证与业务授权解绑；本轮尚未合并或部署。生产验收仍以对应发布记录为准。
+
 基金、投资者份额、净值和操作历史管理。React/Vite 前端，FastAPI/SQLAlchemy 后端，SQLite 业务库，Redis BFF 会话。
 
 - [生产入口](https://vestoria.mr-strawberry.com/fund/)
@@ -9,7 +11,7 @@
 
 ## 账号与权限
 
-统一登录由 auth-service 提供，client ID 为 `vestoria`。邮箱验证后，`vestoria:viewer` 可读，`vestoria:editor` 可读写；`auth-service:admin` 具有完整权限。角色由 Auth 管理员设置。
+统一登录由 auth-service 提供，client ID 为 `vestoria`。active 用户的 `vestoria:viewer` 可读，`vestoria:editor` 可读写；`auth-service:admin` 具有完整权限。角色由 Auth 管理员设置。
 
 本地 `admins` 表只是历史命名的业务用户映射，不代表每条记录都是管理员。SSO 新用户不设置本地密码。没有业务默认管理员密码，也不再使用 `POST /api/v1/auth/login` 获取浏览器 token。
 
@@ -57,3 +59,7 @@ SQLite 默认宿主机 `./data/fund_manager.db` 映射到 `/app/data/fund_manage
 统一侧栏、基金/投资者页面、交易预览、数据管理与响应式布局已经落地；账务口径、真实权限和导入导出格式保持不变。本轮 Docker 构建、19 项后端测试及 25 组浏览器场景通过，尚未推送或部署生产。
 
 本地体验：[Fund](http://localhost:20260)、[子路径验收](http://localhost:21260/fund/)。完整范围、复跑方法、已知边界与截图见 [统一 UI 迭代记录](docs/iterations/2026-09-06-unified-ui.md)。该记录是本轮最新验收状态，前序迭代的待验证事项以其中的实际覆盖清单为准。
+
+### 本地账号关联（2026-10-26 开发分支）
+
+已绑定同一 Auth `sub` 的 active 本地账号正常登录，未验证邮箱也可新建独立账号映射。相同邮箱若已绑定另一 `sub`，返回 409，不能自动覆盖；未绑定的历史记录只有真实已验证邮箱才可原子认领。冲突需管理员处理账号关联，不是额外业务邮箱门禁。本地禁用仍拒绝登录；失败不建立业务会话，不改原有数据归属。本轮无需 schema 迁移。
