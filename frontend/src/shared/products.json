@@ -24,6 +24,14 @@
     "productionUrl": "https://vestoria.mr-strawberry.com/data/"
   },
   {
+    "id": "strategy-hub",
+    "name": "Strategy Hub",
+    "description": "策略规则与研究模拟",
+    "icon": "chart",
+    "localUrl": "http://localhost:20375/strategy-hub/",
+    "productionUrl": "https://vestoria.mr-strawberry.com/strategy-hub/"
+  },
+  {
     "id": "knowledge-hub",
     "name": "Library",
     "description": "文章剪藏与研究报告",
